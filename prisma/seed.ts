@@ -3,28 +3,22 @@ import { PrismaPg } from "@prisma/adapter-pg"
 import pg from "pg"
 import bcrypt from "bcryptjs"
 
-// 1. Instantiate PG Pool
+// Note: Standalone CLI Seed script requires an independent, isolated connection 
+// pool that explicitly closes pool execution on script exit via pool.end().
 const connectionString = process.env.DATABASE_URL
 if (!connectionString) {
   throw new Error("DATABASE_URL is not set in process.env")
 }
 
-const pool = new pg.Pool({
-  connectionString,
-  ssl: { rejectUnauthorized: false },
-})
-
-// 2. Instantiate Driver Adapter and Prisma Client
+const pool = new pg.Pool({ connectionString })
 const adapter = new PrismaPg(pool)
 const prisma = new PrismaClient({ adapter })
 
 async function main() {
   console.log("Seeding database...")
 
-  // 3. Generate Password Hash
   const hashedPassword = await bcrypt.hash("Admin@123456", 10)
 
-  // 4. Seed Users
   await prisma.user.upsert({
     where: { email: "admin@sika.pk" },
     update: { passwordHash: hashedPassword },
@@ -60,7 +54,6 @@ async function main() {
     },
   })
 
-  // 5. Seed Categories
   const waterproofing = await prisma.category.upsert({
     where: { slug: "waterproofing" },
     update: {},
@@ -91,7 +84,6 @@ async function main() {
     },
   })
 
-  // 6. Seed Products
   await prisma.product.upsert({
     where: { slug: "sikatop-seal-107" },
     update: {},

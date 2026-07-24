@@ -12,11 +12,8 @@ if (!globalForPrisma.prisma) {
   const connectionString = process.env.DATABASE_URL
   const pool = new pg.Pool({
     connectionString,
-    max: 10, // Cap total connections
+    max: 10,
     idleTimeoutMillis: 30000,
-    ssl: {
-      rejectUnauthorized: false, // Essential for local dev against pooled Supabase
-    },
   })
   const adapter = new PrismaPg(pool)
   prisma = new PrismaClient({ adapter })
