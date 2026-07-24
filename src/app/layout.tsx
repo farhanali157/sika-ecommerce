@@ -3,6 +3,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { Navbar } from "@/components/navbar"
 import { SessionProvider } from "next-auth/react"
+import { auth } from "@/auth"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -11,15 +12,17 @@ export const metadata: Metadata = {
   description: "Official E-commerce Store for Sika Construction Chemicals",
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const session = await auth()
+
   return (
     <html lang="en">
       <body className={inter.className}>
-        <SessionProvider>
+        <SessionProvider session={session}>
           <Navbar />
           <main>{children}</main>
         </SessionProvider>

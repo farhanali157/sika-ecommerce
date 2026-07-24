@@ -1,181 +1,172 @@
-import { PrismaClient, Role } from '@prisma/client'
-import { PrismaPg } from '@prisma/adapter-pg'
-import pg from 'pg'
-import 'dotenv/config'
+import { PrismaClient, Role } from "@prisma/client"
+import { PrismaPg } from "@prisma/adapter-pg"
+import pg from "pg"
+import bcrypt from "bcryptjs"
 
-// Setup PostgreSQL pool with SSL verification override for Supabase
+// 1. Instantiate PG Pool
 const connectionString = process.env.DATABASE_URL
+if (!connectionString) {
+  throw new Error("DATABASE_URL is not set in process.env")
+}
+
 const pool = new pg.Pool({
   connectionString,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ssl: { rejectUnauthorized: false },
 })
+
+// 2. Instantiate Driver Adapter and Prisma Client
 const adapter = new PrismaPg(pool)
 const prisma = new PrismaClient({ adapter })
 
 async function main() {
-  console.log('Cleaning up existing database records...')
+  console.log("Seeding database...")
 
-  // Clear existing data in cascade order
-  await prisma.orderItem.deleteMany()
-  await prisma.order.deleteMany()
-  await prisma.tieredPrice.deleteMany()
-  await prisma.product.deleteMany()
-  await prisma.category.deleteMany()
-  await prisma.address.deleteMany()
-  await prisma.user.deleteMany()
+  // 3. Generate Password Hash
+  const hashedPassword = await bcrypt.hash("Admin@123456", 10)
 
-  console.log('Seeding initial categories...')
-
-  // 1. Create Categories
-  const waterproofing = await prisma.category.create({
-    data: {
-      name: 'Waterproofing',
-      slug: 'waterproofing',
-      description: 'High-performance waterproofing slurries, membranes, and joint sealants.',
-    },
-  })
-
-  const concreteRepair = await prisma.category.create({
-    data: {
-      name: 'Concrete Repair & Protection',
-      slug: 'concrete-repair',
-      description: 'Structural repair mortars, bonding bridges, and corrosion protection.',
-    },
-  })
-
-  const tiling = await prisma.category.create({
-    data: {
-      name: 'Tile Adhesives & Grouts',
-      slug: 'tiling',
-      description: 'Tile fixing mortars, epoxy grouts, and flexible sealants.',
-    },
-  })
-
-  console.log('Seeding initial products with tiered pricing...')
-
-  // 2. Create Products with Tiered Pricing & Tech Sheet links
-  await prisma.product.create({
-    data: {
-      name: 'SikaTop Seal-107',
-      slug: 'sikatop-seal-107',
-      sku: 'SKU-107-25KG',
-      description: 'Two-part polymer-modified cementitious waterproof mortar slurry for basements, water tanks, and wet areas.',
-      packSize: '25 kg set',
-      inStock: true,
-      stockQty: 150,
-      featured: true,
-      categoryId: waterproofing.id,
-      images: [
-        'https://images.sika.com/placeholder.jpg',
-      ],
-      tdsUrl: 'https://pak.sika.com/tds/sikatop-seal-107.pdf',
-      sdsUrl: 'https://pak.sika.com/sds/sikatop-seal-107.pdf',
-      tieredPrices: {
-        create: [
-          { minQty: 1, price: 4500 },   // Retail price per unit
-          { minQty: 10, price: 4100 },  // Tier 1 B2B bulk discount
-          { minQty: 50, price: 3800 },  // Tier 2 high-volume discount
-        ],
-      },
-    },
-  })
-
-  await prisma.product.create({
-    data: {
-      name: 'SikaGrout-214 PK',
-      slug: 'sikagrout-214-pk',
-      sku: 'SKU-214-25KG',
-      description: 'One-part flowable shrink-compensated cementitious precision grout for machine foundations and anchor bolts.',
-      packSize: '25 kg bag',
-      inStock: true,
-      stockQty: 200,
-      featured: true,
-      categoryId: concreteRepair.id,
-      images: [
-        'https://images.sika.com/placeholder.jpg',
-      ],
-      tdsUrl: 'https://pak.sika.com/tds/sikagrout-214-pk.pdf',
-      sdsUrl: 'https://pak.sika.com/sds/sikagrout-214-pk.pdf',
-      tieredPrices: {
-        create: [
-          { minQty: 1, price: 2800 },
-          { minQty: 20, price: 2500 },
-          { minQty: 100, price: 2200 },
-        ],
-      },
-    },
-  })
-
-  await prisma.product.create({
-    data: {
-      name: 'Sika Ceram-102 PK',
-      slug: 'sika-ceram-102-pk',
-      sku: 'SKU-102-20KG',
-      description: 'High-performance cementitious adhesive for ceramic tiles in indoor floors and walls.',
-      packSize: '20 kg bag',
-      inStock: true,
-      stockQty: 300,
-      featured: false,
-      categoryId: tiling.id,
-      images: [
-        'https://images.sika.com/placeholder.jpg',
-      ],
-      tdsUrl: 'https://pak.sika.com/tds/sikaceram-102-pk.pdf',
-      tieredPrices: {
-        create: [
-          { minQty: 1, price: 1650 },
-          { minQty: 15, price: 1450 },
-          { minQty: 50, price: 1300 },
-        ],
-      },
-    },
-  })
-
-  console.log('Seeding initial test users...')
-
-  // 3. Create Users (Admin, B2B, Retail)
-  await prisma.user.create({
-    data: {
-      email: 'admin@sika.pk',
-      name: 'Sika Super Admin',
+  // 4. Seed Users
+  await prisma.user.upsert({
+    where: { email: "admin@sika.pk" },
+    update: { passwordHash: hashedPassword },
+    create: {
+      email: "admin@sika.pk",
+      name: "Sika Super Admin",
       role: Role.ADMIN,
-      phone: '+923001234567',
+      passwordHash: hashedPassword,
     },
   })
 
-  await prisma.user.create({
-    data: {
-      email: 'contractor@buildcorp.pk',
-      name: 'BuildCorp Pakistan',
+  await prisma.user.upsert({
+    where: { email: "contractor@buildcorp.pk" },
+    update: { passwordHash: hashedPassword },
+    create: {
+      email: "contractor@buildcorp.pk",
+      name: "BuildCorp Pakistan",
       role: Role.B2B,
-      companyName: 'BuildCorp Enterprises',
-      ntnNumber: '7891234-5',
-      phone: '+923219876543',
+      companyName: "BuildCorp PK Ltd",
+      ntnNumber: "NTN-9982341-0",
+      passwordHash: hashedPassword,
     },
   })
 
-  await prisma.user.create({
-    data: {
-      email: 'customer@gmail.com',
-      name: 'Test Customer',
+  await prisma.user.upsert({
+    where: { email: "customer@gmail.com" },
+    update: { passwordHash: hashedPassword },
+    create: {
+      email: "customer@gmail.com",
+      name: "Ali Khan",
       role: Role.CUSTOMER,
-      phone: '+923335551212',
+      passwordHash: hashedPassword,
     },
   })
 
-  console.log('✅ Database successfully seeded!')
+  // 5. Seed Categories
+  const waterproofing = await prisma.category.upsert({
+    where: { slug: "waterproofing" },
+    update: {},
+    create: {
+      name: "Waterproofing",
+      slug: "waterproofing",
+      description: "Cementitious and liquid applied waterproofing membranes for basements, roofs, and wet areas.",
+    },
+  })
+
+  const concreteRepair = await prisma.category.upsert({
+    where: { slug: "concrete-repair" },
+    update: {},
+    create: {
+      name: "Concrete Repair & Protection",
+      slug: "concrete-repair",
+      description: "Structural repair mortars, pore sealers, and protective coatings for reinforced concrete structures.",
+    },
+  })
+
+  const tiling = await prisma.category.upsert({
+    where: { slug: "tiling" },
+    update: {},
+    create: {
+      name: "Tile Adhesives & Grouts",
+      slug: "tiling",
+      description: "High performance tile adhesives, joint fillers, and epoxy grouts for heavy duty installations.",
+    },
+  })
+
+  // 6. Seed Products
+  await prisma.product.upsert({
+    where: { slug: "sikatop-seal-107" },
+    update: {},
+    create: {
+      name: "SikaTop Seal-107",
+      slug: "sikatop-seal-107",
+      sku: "SKU-STS-107",
+      description: "Two-part polymer modified cementitious waterproof slurry mortar.",
+      packSize: "25 kg set",
+      stockQty: 150,
+      categoryId: waterproofing.id,
+      tdsUrl: "https://pk.sika.com/content/dam/dms/pk01/m/sikatop_seal-107.pdf",
+      sdsUrl: "https://pk.sika.com/content/dam/dms/pk01/s/sikatop_seal-107_sds.pdf",
+      tieredPrices: {
+        create: [
+          { minQty: 1, price: 4200.0 },
+          { minQty: 10, price: 3800.0 },
+          { minQty: 50, price: 3450.0 },
+        ],
+      },
+    },
+  })
+
+  await prisma.product.upsert({
+    where: { slug: "sikagrout-214-pk" },
+    update: {},
+    create: {
+      name: "SikaGrout-214 PK",
+      slug: "sikagrout-214-pk",
+      sku: "SKU-SGR-214",
+      description: "1-component shrinkage compensated cementitious precision grout.",
+      packSize: "20 kg bag",
+      stockQty: 200,
+      categoryId: concreteRepair.id,
+      tdsUrl: "https://pk.sika.com/content/dam/dms/pk01/g/sikagrout-214_pk.pdf",
+      tieredPrices: {
+        create: [
+          { minQty: 1, price: 1850.0 },
+          { minQty: 20, price: 1650.0 },
+          { minQty: 100, price: 1480.0 },
+        ],
+      },
+    },
+  })
+
+  await prisma.product.upsert({
+    where: { slug: "sika-ceram-102-pk" },
+    update: {},
+    create: {
+      name: "Sika Ceram-102 PK",
+      slug: "sika-ceram-102-pk",
+      sku: "SKU-SCR-102",
+      description: "High quality cementitious tile adhesive for ceramic tiles.",
+      packSize: "20 kg bag",
+      stockQty: 300,
+      categoryId: tiling.id,
+      tieredPrices: {
+        create: [
+          { minQty: 1, price: 1250.0 },
+          { minQty: 25, price: 1100.0 },
+          { minQty: 100, price: 950.0 },
+        ],
+      },
+    },
+  })
+
+  console.log("Seeding completed successfully!")
 }
 
 main()
-  .then(async () => {
-    await prisma.$disconnect()
-    await pool.end()
-  })
-  .catch(async (e) => {
-    console.error('❌ Error during seeding:', e)
-    await prisma.$disconnect()
-    await pool.end()
+  .catch((e) => {
+    console.error("Seeding failed:", e)
     process.exit(1)
+  })
+  .finally(async () => {
+    await prisma.$disconnect()
+    await pool.end()
   })

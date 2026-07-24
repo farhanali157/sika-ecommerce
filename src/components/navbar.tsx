@@ -1,8 +1,6 @@
 import Link from "next/link"
-import { PrismaClient } from "@prisma/client"
-import { PrismaPg } from "@prisma/adapter-pg"
-import pg from "pg"
 import { ChevronDown, Package } from "lucide-react"
+import { prisma } from "@/lib/prisma"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,12 +8,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { NavActions } from "./nav-actions"
-
-// Database Connection
-const connectionString = process.env.DATABASE_URL
-const pool = new pg.Pool({ connectionString, ssl: { rejectUnauthorized: false } })
-const adapter = new PrismaPg(pool)
-const prisma = new PrismaClient({ adapter })
 
 export async function Navbar() {
   let categories: { id: string; name: string; slug: string }[] = []
@@ -31,7 +23,6 @@ export async function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-        
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500 font-black text-white text-xl">
@@ -42,13 +33,12 @@ export async function Navbar() {
           </span>
         </Link>
 
-        {/* Navigation Links & Categories */}
+        {/* Navigation Links & Categories Dropdown */}
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-700">
           <Link href="/" className="hover:text-amber-600 transition">
             Home
           </Link>
 
-          {/* Dynamic Categories Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger className="flex items-center gap-1 hover:text-amber-600 transition focus:outline-none">
               Products <ChevronDown className="h-4 w-4" />
@@ -74,7 +64,7 @@ export async function Navbar() {
           </Link>
         </nav>
 
-        {/* Actions (Cart & Auth) */}
+        {/* Actions (Cart Drawer & User Auth Profile) */}
         <NavActions />
       </div>
     </header>

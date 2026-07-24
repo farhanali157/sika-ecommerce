@@ -1,32 +1,9 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@auth/prisma-adapter"
-import { PrismaClient } from "@prisma/client"
-import { PrismaPg } from "@prisma/adapter-pg"
-import pg from "pg"
+import bcrypt from "bcryptjs"
+import { prisma } from "@/lib/prisma"
 import { authConfig } from "./auth.config"
-
-// Prevent multiple connection pools in development hot-reload
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-}
-
-let prisma: PrismaClient
-
-if (!globalForPrisma.prisma) {
-  const connectionString = process.env.DATABASE_URL
-  const pool = new pg.Pool({
-    connectionString,
-    max: 5, // Limit connection pool size
-    idleTimeoutMillis: 10000,
-    ssl: { rejectUnauthorized: false },
-  })
-  const adapter = new PrismaPg(pool)
-  prisma = new PrismaClient({ adapter })
-  if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
-} else {
-  prisma = globalForPrisma.prisma
-}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -37,48 +14,40 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       name: "Credentials",
       credentials: {
         email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
         const email = credentials?.email as string
-        if (!email) return null
+        const password = credentials?.password as string
+
+        // Require both email and password inputs
+        if (!email || !password) return null
 
         try {
+          // Look up user in Supabase via singleton Prisma client
           const user = await prisma.user.findUnique({
             where: { email },
           })
 
-          if (user) {
-            return {
-              id: user.id,
-              email: user.email,
-              name: user.name,
-              role: user.role,
-            }
+          // Reject authorization if user doesn't exist or lacks a password hash
+          if (!user || !user.passwordHash) return null
+
+          // Verify incoming plain-text password against bcrypt hash
+          const isValidPassword = await bcrypt.compare(password, user.passwordHash)
+
+          if (!isValidPassword) return null
+
+          // Return sanitized user object for JWT token generation
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
           }
         } catch (error) {
-          console.error("Database query failed in authorize:", error)
+          console.error("Auth DB query failed:", error)
+          return null
         }
-
-        // Fast local fallback for seeded accounts
-        if (email === "admin@sika.pk") {
-          return {
-            id: "fallback-admin-id",
-            email: "admin@sika.pk",
-            name: "Sika Super Admin",
-            role: "ADMIN",
-          }
-        }
-
-        if (email === "contractor@buildcorp.pk") {
-          return {
-            id: "fallback-b2b-id",
-            email: "contractor@buildcorp.pk",
-            name: "BuildCorp Pakistan",
-            role: "B2B",
-          }
-        }
-
-        return null
       },
     }),
   ],
