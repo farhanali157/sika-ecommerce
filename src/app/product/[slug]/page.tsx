@@ -11,19 +11,25 @@ export default async function ProductDetailPage({ params }: Props) {
   const { slug } = await params
   const session = await auth()
   const userRole = (session?.user as any)?.role
+  let product
 
-  // 1. Query DB
-  const product = await prisma.product.findUnique({
-    where: { slug },
-    include: {
-      category: true,
-      tieredPrices: {
-        orderBy: { minQty: "asc" },
+  try {
+    product = await prisma.product.findUnique({
+      where: { slug },
+      include: {
+        category: true,
+        tieredPrices: {
+          orderBy: { minQty: "asc" },
+        },
       },
-    },
-  })
+    })
+  } catch (error) {
+    console.error("Database query failed on ProductDetailPage:", error)
+    // Rethrow DB error so Next.js error.tsx handles it gracefully as a 500
+    throw error
+  }
 
-  // 2. Explicit 404 if product not found
+  // Explicit 404 if product not found
   if (!product) return notFound()
 
   return (

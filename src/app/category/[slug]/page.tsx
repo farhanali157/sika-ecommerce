@@ -8,20 +8,26 @@ type Props = {
 
 export default async function CategoryPage({ params }: Props) {
   const { slug } = await params
+  let category
 
-  // 1. Database Fetch
-  const category = await prisma.category.findUnique({
-    where: { slug },
-    include: {
-      products: {
-        include: {
-          tieredPrices: true,
+  try {
+    category = await prisma.category.findUnique({
+      where: { slug },
+      include: {
+        products: {
+          include: {
+            tieredPrices: true,
+          },
         },
       },
-    },
-  })
+    })
+  } catch (error) {
+    console.error("Database query failed on CategoryPage:", error)
+    // Rethrow DB error so Next.js error.tsx handles it gracefully as a 500
+    throw error
+  }
 
-  // 2. Explicit 404 if item does not exist in DB
+  // Explicit 404 if item does not exist in DB
   if (!category) return notFound()
 
   return (
