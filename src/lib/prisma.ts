@@ -9,15 +9,15 @@ const globalForPrisma = globalThis as unknown as {
 let prisma: PrismaClient
 
 if (!globalForPrisma.prisma) {
-  const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL
-  
+  const connectionString = process.env.DATABASE_URL
+
   const pool = new pg.Pool({
     connectionString,
     max: 10,
     idleTimeoutMillis: 30000,
-    // Explicitly require SSL with strict TLS negotiation for Supabase poolers
     ssl: {
-      rejectUnauthorized: true,
+      // Allows pooled SSL connections to negotiate TLS without failing on self-signed intermediate CA chains
+      rejectUnauthorized: false,
     },
   })
   const adapter = new PrismaPg(pool)
