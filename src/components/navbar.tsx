@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { NavActions } from "./nav-actions"
+import { demoCategories } from "@/lib/demo-data"
 
 export async function Navbar() {
   let categories: { id: string; name: string; slug: string }[] = []
@@ -18,6 +19,7 @@ export async function Navbar() {
     })
   } catch (error) {
     console.error("Navbar category fetch error:", error)
+    categories = demoCategories.map(({ id, name, slug }) => ({ id, name, slug }))
   }
 
   return (
@@ -43,7 +45,7 @@ export async function Navbar() {
             <DropdownMenuTrigger className="flex items-center gap-1 hover:text-amber-600 transition focus:outline-none">
               Products <ChevronDown className="h-4 w-4" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuContent align="start" className="w-64">
               {categories.length > 0 ? (
                 categories.map((cat) => (
                   <DropdownMenuItem key={cat.id} asChild>

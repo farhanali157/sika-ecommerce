@@ -7,7 +7,7 @@ export const authConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user
-      const userRole = (auth?.user as any)?.role
+      const userRole = auth?.user?.role
       const { pathname } = nextUrl
 
       // Protect Admin Dashboard
@@ -28,13 +28,13 @@ export const authConfig = {
     },
     async jwt({ token, user }) {
       if (user) {
-        token.role = (user as any).role
+        token.role = user.role
       }
       return token
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as any).role = token.role
+        session.user.role = token.role as "CUSTOMER" | "B2B" | "ADMIN" | undefined
       }
       return session
     },

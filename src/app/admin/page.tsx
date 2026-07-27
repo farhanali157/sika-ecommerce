@@ -12,7 +12,7 @@ export default async function AdminDashboard() {
         Logged in as: <strong>{session?.user?.email}</strong>
       </p>
       <p className="text-gray-700">
-        Role: <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded font-bold">{(session?.user as any)?.role}</span>
+        Role: <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded font-bold">{session?.user?.role}</span>
       </p>
     </div>
   )

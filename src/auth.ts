@@ -4,10 +4,11 @@ import { PrismaAdapter } from "@auth/prisma-adapter"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 import { authConfig } from "./auth.config"
+import { getDemoUser } from "@/lib/demo-data"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
-  adapter: PrismaAdapter(prisma) as any,
+  adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
   providers: [
     Credentials({
@@ -20,24 +21,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const email = credentials?.email as string
         const password = credentials?.password as string
 
-        // Require both email and password inputs
         if (!email || !password) return null
 
+        const normalizedEmail = email.trim().toLowerCase()
+        const demoUser = getDemoUser(normalizedEmail)
+
+        if (demoUser && password === demoUser.password) {
+          return {
+            id: demoUser.id,
+            email: demoUser.email,
+            name: demoUser.name,
+            role: demoUser.role,
+          }
+        }
+
         try {
-          // Look up user in Supabase via singleton Prisma client
           const user = await prisma.user.findUnique({
-            where: { email },
+            where: { email: normalizedEmail },
           })
 
-          // Reject authorization if user doesn't exist or lacks a password hash
           if (!user || !user.passwordHash) return null
 
-          // Verify incoming plain-text password against bcrypt hash
           const isValidPassword = await bcrypt.compare(password, user.passwordHash)
 
           if (!isValidPassword) return null
 
-          // Return sanitized user object for JWT token generation
           return {
             id: user.id,
             email: user.email,

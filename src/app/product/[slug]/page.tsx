@@ -2,6 +2,7 @@ import { notFound } from "next/navigation"
 import { FileText, ShieldAlert, Lock } from "lucide-react"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
+import { getDemoProductBySlug } from "@/lib/demo-data"
 
 type Props = {
   params: Promise<{ slug: string }>
@@ -10,7 +11,7 @@ type Props = {
 export default async function ProductDetailPage({ params }: Props) {
   const { slug } = await params
   const session = await auth()
-  const userRole = (session?.user as any)?.role
+  const userRole = session?.user?.role
   let product
 
   try {
@@ -25,8 +26,7 @@ export default async function ProductDetailPage({ params }: Props) {
     })
   } catch (error) {
     console.error("Database query failed on ProductDetailPage:", error)
-    // Rethrow DB error so Next.js error.tsx handles it gracefully as a 500
-    throw error
+    product = getDemoProductBySlug(slug)
   }
 
   // Explicit 404 if product not found

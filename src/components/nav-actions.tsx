@@ -22,7 +22,7 @@ import {
 export function NavActions() {
   const { data: session } = useSession()
   const user = session?.user
-  const userRole = (user as any)?.role
+  const userRole = user?.role
 
   return (
     <div className="flex items-center gap-4">

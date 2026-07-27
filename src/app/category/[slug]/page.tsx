@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
+import { getDemoCategoryBySlug } from "@/lib/demo-data"
 
 type Props = {
   params: Promise<{ slug: string }>
@@ -23,8 +24,7 @@ export default async function CategoryPage({ params }: Props) {
     })
   } catch (error) {
     console.error("Database query failed on CategoryPage:", error)
-    // Rethrow DB error so Next.js error.tsx handles it gracefully as a 500
-    throw error
+    category = getDemoCategoryBySlug(slug)
   }
 
   // Explicit 404 if item does not exist in DB

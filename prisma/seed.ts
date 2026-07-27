@@ -5,9 +5,9 @@ import bcrypt from "bcryptjs"
 
 // Note: Standalone CLI Seed script requires an independent, isolated connection 
 // pool that explicitly closes pool execution on script exit via pool.end().
-const connectionString = process.env.DATABASE_URL
+const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL
 if (!connectionString) {
-  throw new Error("DATABASE_URL is not set in process.env")
+  throw new Error("DATABASE_URL or DIRECT_URL must be set in process.env")
 }
 
 const pool = new pg.Pool({ connectionString })

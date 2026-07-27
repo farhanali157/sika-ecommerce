@@ -16,19 +16,23 @@ export default function LoginPage() {
     setLoading(true)
     setErrorMsg("")
 
-    const res = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    })
+    try {
+      const res = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      })
 
-    setLoading(false)
+      if (res?.ok && !res?.error) {
+        window.location.assign("/admin")
+        return
+      }
 
-    if (res?.ok && !res?.error) {
-      router.push("/admin")
-      router.refresh()
-    } else {
       setErrorMsg("Invalid email or password.")
+    } catch {
+      setErrorMsg("Unable to sign in right now. Please try again.")
+    } finally {
+      setLoading(false)
     }
   }
 
