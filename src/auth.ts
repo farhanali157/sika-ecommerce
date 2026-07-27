@@ -1,15 +1,11 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
-import { PrismaAdapter } from "@auth/prisma-adapter"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 import { authConfig } from "./auth.config"
-import { getDemoUser } from "@/lib/demo-data"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
-  adapter: PrismaAdapter(prisma),
-  session: { strategy: "jwt" },
   providers: [
     Credentials({
       name: "Credentials",
@@ -18,33 +14,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const email = credentials?.email as string
-        const password = credentials?.password as string
-
-        if (!email || !password) return null
-
-        const normalizedEmail = email.trim().toLowerCase()
-        const demoUser = getDemoUser(normalizedEmail)
-
-        if (demoUser && password === demoUser.password) {
-          return {
-            id: demoUser.id,
-            email: demoUser.email,
-            name: demoUser.name,
-            role: demoUser.role,
-          }
+        if (!credentials?.email || !credentials?.password) {
+          return null
         }
+
+        const email = credentials.email as string
+        const password = credentials.password as string
 
         try {
           const user = await prisma.user.findUnique({
-            where: { email: normalizedEmail },
+            where: { email },
           })
 
-          if (!user || !user.passwordHash) return null
+          if (!user || !user.passwordHash) {
+            return null
+          }
 
-          const isValidPassword = await bcrypt.compare(password, user.passwordHash)
+          const isPasswordValid = await bcrypt.compare(
+            password,
+            user.passwordHash
+          )
 
-          if (!isValidPassword) return null
+          if (!isPasswordValid) {
+            return null
+          }
 
           return {
             id: user.id,
@@ -53,7 +46,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             role: user.role,
           }
         } catch (error) {
-          console.error("Auth DB query failed:", error)
+          console.error("Auth DB Error:", error)
           return null
         }
       },
