@@ -2,20 +2,56 @@ import Link from "next/link"
 import { ArrowRight, ShieldCheck, Truck, Wrench, Package } from "lucide-react"
 import { prisma } from "@/lib/prisma"
 
+type CategorySummary = {
+  id: string
+  name: string
+  slug: string
+}
+
+type TieredPrice = {
+  id: string
+  minQty: number
+  price: number
+}
+
+type FeaturedProduct = {
+  id: string
+  name: string
+  slug: string
+  packSize: string
+  description: string
+  tieredPrices: TieredPrice[]
+}
+
 export default async function HomePage() {
-  let categories: any[] = []
-  let featuredProducts: any[] = []
+  let categories: CategorySummary[] = []
+  let featuredProducts: FeaturedProduct[] = []
   let isDbOffline = false
 
   try {
     categories = await prisma.category.findMany({
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+      },
       take: 4,
     })
 
     featuredProducts = await prisma.product.findMany({
       take: 6,
-      include: {
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        packSize: true,
+        description: true,
         tieredPrices: {
+          select: {
+            id: true,
+            minQty: true,
+            price: true,
+          },
           orderBy: { minQty: "asc" },
         },
       },
@@ -124,7 +160,7 @@ export default async function HomePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
             {featuredProducts.map((product) => {
               const retailPrice =
-                product.tieredPrices.find((p: any) => p.minQty === 1)?.price || 0
+                product.tieredPrices.find((p) => p.minQty === 1)?.price || 0
 
               return (
                 <div

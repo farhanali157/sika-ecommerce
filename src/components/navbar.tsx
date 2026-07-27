@@ -1,6 +1,8 @@
 import Link from "next/link"
-import { ChevronDown, Package } from "lucide-react"
+import { Package, Search, ShoppingBag } from "lucide-react"
 import { prisma } from "@/lib/prisma"
+import { auth } from "@/auth"
+import { DEMO_CATEGORIES } from "@/lib/demo-data"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,7 +10,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { NavActions } from "./nav-actions"
-import { demoCategories } from "@/lib/demo-data"
 
 export async function Navbar() {
   let categories: { id: string; name: string; slug: string }[] = []
@@ -18,56 +19,81 @@ export async function Navbar() {
       select: { id: true, name: true, slug: true },
     })
   } catch (error) {
-    console.error("Navbar category fetch error:", error)
-    categories = demoCategories.map(({ id, name, slug }) => ({ id, name, slug }))
+    console.error("Navbar DB fetch error:", error)
+    categories = DEMO_CATEGORIES.map(({ id, name, slug }) => ({ id, name, slug }))
   }
 
+  const session = await auth()
+
   return (
-    <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-        {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500 font-black text-white text-xl">
-            S
+    <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white shadow-sm">
+      {/* Top Brand Bar */}
+      <div className="bg-neutral-900 text-xs text-gray-300 py-1.5 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl flex justify-between items-center">
+          <span>Official Sika® E-Commerce Platform</span>
+          <div className="flex gap-4">
+            <Link href="/contact" className="hover:underline">Support</Link>
+            <Link href="/locator" className="hover:underline">Distributor Finder</Link>
           </div>
-          <span className="text-xl font-bold tracking-tight text-gray-900">
-            SIKA <span className="text-amber-500">STORE</span>
-          </span>
-        </Link>
+        </div>
+      </div>
 
-        {/* Navigation Links & Categories Dropdown */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-700">
-          <Link href="/" className="hover:text-amber-600 transition">
-            Home
-          </Link>
+      {/* Main Navigation Bar */}
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between gap-4">
+          
+          {/* Logo & Category Dropdown */}
+          <div className="flex items-center gap-6">
+            <Link href="/" className="flex items-center gap-2">
+              <span className="bg-amber-500 text-black font-black text-xl px-2.5 py-1 rounded tracking-tighter">
+                SIKA
+              </span>
+            </Link>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-1 hover:text-amber-600 transition focus:outline-none">
-              Products <ChevronDown className="h-4 w-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-64">
-              {categories.length > 0 ? (
-                categories.map((cat) => (
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-semibold text-gray-700 hover:text-amber-600 transition outline-none">
+                <Package className="h-4 w-4" /> Categories
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48 bg-white border border-gray-200 shadow-md rounded-lg p-1">
+                {categories.map((cat) => (
                   <DropdownMenuItem key={cat.id} asChild>
-                    <Link href={`/category/${cat.slug}`} className="cursor-pointer">
-                      <Package className="mr-2 h-4 w-4 text-amber-500" />
+                    <Link
+                      href={`/category/${cat.slug}`}
+                      className="block px-3 py-2 text-sm font-medium text-gray-700 hover:bg-amber-50 hover:text-amber-600 rounded-md transition"
+                    >
                       {cat.name}
                     </Link>
                   </DropdownMenuItem>
-                ))
-              ) : (
-                <DropdownMenuItem disabled>No categories found</DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
-          <Link href="/about" className="hover:text-amber-600 transition">
-            About Sika
-          </Link>
-        </nav>
+          {/* Search Input Placeholder */}
+          <div className="flex-1 max-w-md hidden md:block">
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search Sika products (e.g. SikaTop, Sikaflex)..."
+                className="w-full pl-9 pr-4 py-1.5 text-sm rounded-lg border border-gray-300 focus:outline-none focus:border-amber-500"
+              />
+            </div>
+          </div>
 
-        {/* Actions (Cart Drawer & User Auth Profile) */}
-        <NavActions />
+          {/* User Auth Actions & Cart */}
+          <div className="flex items-center gap-4">
+            <NavActions session={session} />
+            
+            <button className="relative p-2 text-gray-700 hover:text-amber-600 transition">
+              <ShoppingBag className="h-5 w-5" />
+              <span className="absolute top-0 right-0 h-4 w-4 rounded-full bg-amber-500 text-[10px] font-bold text-black flex items-center justify-center">
+                0
+              </span>
+            </button>
+          </div>
+
+        </div>
       </div>
     </header>
   )

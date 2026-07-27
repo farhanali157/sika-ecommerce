@@ -1,20 +1,24 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
+}
+
+enum Role {
+  CUSTOMER
+  B2B
+  ADMIN
 }
 
 model User {
   id           String    @id @default(cuid())
-  name         String?
   email        String    @unique
-  passwordHash String?
-  phone        String?
+  name         String?
+  passwordHash String
   role         Role      @default(CUSTOMER)
-  companyName  String?
-  ntnNumber    String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   addresses    Address[]
@@ -27,124 +31,71 @@ model Address {
   street     String
   city       String
   province   String
-  postalCode String?
-  isDefault  Boolean  @default(false)
+  postalCode String
+  country    String   @default("Pakistan")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orders     Order[]
 }
 
 model Category {
-  id          String     @id @default(cuid())
-  name        String
-  slug        String     @unique
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
   description String?
-  imageUrl    String?
-  parentId    String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
-  children    Category[] @relation("CategoryHierarchy")
   products    Product[]
-}
-
-model ApplicationArea {
-  id        String    @id @default(cuid())
-  name      String
-  slug      String    @unique
-  imageUrl  String?
-  createdAt DateTime  @default(now())
-  products  Product[] @relation("ApplicationAreaToProduct")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 model Product {
-  id           String            @id @default(cuid())
+  id           String        @id @default(cuid())
+  sku          String        @unique
+  slug         String        @unique
   name         String
-  slug         String            @unique
-  sku          String            @unique
   description  String
   packSize     String
-  inStock      Boolean           @default(true)
-  stockQty     Int               @default(0)
-  featured     Boolean           @default(false)
-  images       String[]
   tdsUrl       String?
   sdsUrl       String?
   categoryId   String
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  orderItems   OrderItem[]
-  category     Category          @relation(fields: [categoryId], references: [id])
+  category     Category      @relation(fields: [categoryId], references: [id])
   tieredPrices TieredPrice[]
-  areas        ApplicationArea[] @relation("ApplicationAreaToProduct")
+  orderItems   OrderItem[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model TieredPrice {
-  id        String  @id @default(cuid())
+  id        String   @id @default(cuid())
   productId String
   minQty    Int
   price     Float
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([productId, minQty])
 }
 
 model Order {
-  id              String        @id @default(cuid())
-  orderNumber     String        @unique
-  userId          String
-  addressId       String
-  subtotal        Float
-  taxAmount       Float         @default(0.0)
-  shippingCost    Float         @default(0.0)
-  totalAmount     Float
-  status          OrderStatus   @default(PENDING)
-  paymentStatus   PaymentStatus @default(UNPAID)
-  paymentMethod   PaymentMethod @default(COD)
-  paymentRef      String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  shippingAddress Address       @relation(fields: [addressId], references: [id])
-  user            User          @relation(fields: [userId], references: [id])
-  items           OrderItem[]
+  id          String      @id @default(cuid())
+  userId      String
+  totalAmount Float
+  status      String      @default("PENDING")
+  user        User        @relation(fields: [userId], references: [id])
+  items       OrderItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 }
 
 model OrderItem {
-  id         String  @id @default(cuid())
-  orderId    String
-  productId  String
-  quantity   Int
-  unitPrice  Float
-  totalPrice Float
-  order      Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product    Product @relation(fields: [productId], references: [id])
-}
-
-enum Role {
-  CUSTOMER
-  B2B
-  ADMIN
-}
-
-enum OrderStatus {
-  PENDING
-  PROCESSING
-  SHIPPED
-  DELIVERED
-  CANCELLED
-}
-
-enum PaymentMethod {
-  COD
-  PAYFAST
-  SAFEPAY
-  JAZZCASH
-}
-
-enum PaymentStatus {
-  UNPAID
-  PAID
-  FAILED
-  REFUNDED
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  unitPrice Float
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
