@@ -15,10 +15,6 @@ if (!globalForPrisma.prisma) {
     connectionString,
     max: 10,
     idleTimeoutMillis: 30000,
-    ssl: {
-      // Allows pooled SSL connections to negotiate TLS without failing on self-signed intermediate CA chains
-      rejectUnauthorized: false,
-    },
   })
   const adapter = new PrismaPg(pool)
   prisma = new PrismaClient({ adapter })
