@@ -1,14 +1,125 @@
-datasource db {
-  provider = "postgresql"
-}
-
 generator client {
   provider = "prisma-client-js"
 }
 
-// ==========================================
-// ENUMS
-// ==========================================
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String    @id @default(cuid())
+  name         String?
+  email        String    @unique
+  passwordHash String?
+  phone        String?
+  role         Role      @default(CUSTOMER)
+  companyName  String?
+  ntnNumber    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  addresses    Address[]
+  orders       Order[]
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  userId     String
+  street     String
+  city       String
+  province   String
+  postalCode String?
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders     Order[]
+}
+
+model Category {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  description String?
+  imageUrl    String?
+  parentId    String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Category[] @relation("CategoryHierarchy")
+  products    Product[]
+}
+
+model ApplicationArea {
+  id        String    @id @default(cuid())
+  name      String
+  slug      String    @unique
+  imageUrl  String?
+  createdAt DateTime  @default(now())
+  products  Product[] @relation("ApplicationAreaToProduct")
+}
+
+model Product {
+  id           String            @id @default(cuid())
+  name         String
+  slug         String            @unique
+  sku          String            @unique
+  description  String
+  packSize     String
+  inStock      Boolean           @default(true)
+  stockQty     Int               @default(0)
+  featured     Boolean           @default(false)
+  images       String[]
+  tdsUrl       String?
+  sdsUrl       String?
+  categoryId   String
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  orderItems   OrderItem[]
+  category     Category          @relation(fields: [categoryId], references: [id])
+  tieredPrices TieredPrice[]
+  areas        ApplicationArea[] @relation("ApplicationAreaToProduct")
+}
+
+model TieredPrice {
+  id        String  @id @default(cuid())
+  productId String
+  minQty    Int
+  price     Float
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, minQty])
+}
+
+model Order {
+  id              String        @id @default(cuid())
+  orderNumber     String        @unique
+  userId          String
+  addressId       String
+  subtotal        Float
+  taxAmount       Float         @default(0.0)
+  shippingCost    Float         @default(0.0)
+  totalAmount     Float
+  status          OrderStatus   @default(PENDING)
+  paymentStatus   PaymentStatus @default(UNPAID)
+  paymentMethod   PaymentMethod @default(COD)
+  paymentRef      String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  shippingAddress Address       @relation(fields: [addressId], references: [id])
+  user            User          @relation(fields: [userId], references: [id])
+  items           OrderItem[]
+}
+
+model OrderItem {
+  id         String  @id @default(cuid())
+  orderId    String
+  productId  String
+  quantity   Int
+  unitPrice  Float
+  totalPrice Float
+  order      Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product    Product @relation(fields: [productId], references: [id])
+}
 
 enum Role {
   CUSTOMER
@@ -36,162 +147,4 @@ enum PaymentStatus {
   PAID
   FAILED
   REFUNDED
-}
-
-// ==========================================
-// USER & AUTHENTICATION
-// ==========================================
-
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  passwordHash  String?
-  phone         String?
-  role          Role      @default(CUSTOMER)
-  companyName   String?   // B2B specific field
-  ntnNumber     String?   // B2B tax identifier field
-  
-  addresses     Address[]
-  orders        Order[]
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-}
-
-model Address {
-  id           String   @id @default(cuid())
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  street       String
-  city         String
-  province     String
-  postalCode   String?
-  isDefault    Boolean  @default(false)
-  
-  orders       Order[]
-  
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-}
-
-// ==========================================
-// CATALOG & CATEGORIES
-// ==========================================
-
-model Category {
-  id          String     @id @default(cuid())
-  name        String     // e.g., "Waterproofing", "Concrete Repair", "Tiling"
-  slug        String     @unique
-  description String?
-  imageUrl    String?
-  
-  // Category Hierarchy (Parent -> Subcategories)
-  parentId    String?
-  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
-  children    Category[] @relation("CategoryHierarchy")
-  
-  products    Product[]
-  
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-}
-
-model ApplicationArea {
-  id          String    @id @default(cuid())
-  name        String    // e.g., "Roof", "Basement", "Bathroom", "Foundation"
-  slug        String    @unique
-  imageUrl    String?
-  
-  products    Product[]
-  
-  createdAt   DateTime  @default(now())
-}
-
-// ==========================================
-// PRODUCT ENGINE
-// ==========================================
-
-model Product {
-  id            String          @id @default(cuid())
-  name          String          // e.g., "SikaTop Seal-107"
-  slug          String          @unique
-  sku           String          @unique
-  description   String          @db.Text
-  packSize      String          // e.g., "25 kg Bag", "20 L Drum"
-  inStock       Boolean         @default(true)
-  stockQty      Int             @default(0)
-  featured      Boolean         @default(false)
-  
-  // Media & Technical Data Documents
-  images        String[]        // Cloudinary / S3 URLs
-  tdsUrl        String?         // Technical Data Sheet PDF URL
-  sdsUrl        String?         // Safety Data Sheet PDF URL
-  
-  // Relationships
-  categoryId    String
-  category      Category        @relation(fields: [categoryId], references: [id])
-  
-  areas         ApplicationArea[]
-  tieredPrices  TieredPrice[]
-  orderItems    OrderItem[]
-  
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-}
-
-model TieredPrice {
-  id        String   @id @default(cuid())
-  productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  
-  minQty    Int      // Min units required (e.g., 1 for retail, 10 for bulk B2B)
-  price     Float    // Price per unit for this quantity tier
-  
-  @@unique([productId, minQty])
-}
-
-// ==========================================
-// ORDERS & TRANSACTIONS
-// ==========================================
-
-model Order {
-  id             String        @id @default(cuid())
-  orderNumber    String        @unique // Human readable string e.g. "SIKA-1002"
-  
-  userId         String
-  user           User          @relation(fields: [userId], references: [id])
-  
-  addressId      String
-  shippingAddress Address      @relation(fields: [addressId], references: [id])
-  
-  items          OrderItem[]
-  subtotal       Float
-  taxAmount      Float         @default(0.0)
-  shippingCost   Float         @default(0.0)
-  totalAmount    Float
-  
-  status         OrderStatus   @default(PENDING)
-  paymentStatus  PaymentStatus @default(UNPAID)
-  paymentMethod  PaymentMethod @default(COD)
-  
-  // Gateway transaction tracking
-  paymentRef     String?       // Transaction ID from PayFast/Safepay/JazzCash
-  
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-}
-
-model OrderItem {
-  id        String   @id @default(cuid())
-  orderId   String
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  
-  productId String
-  product   Product  @relation(fields: [productId], references: [id])
-  
-  quantity  Int
-  unitPrice Float    // Actual locked-in unit price based on tier at checkout time
-  totalPrice Float   // quantity * unitPrice
 }
