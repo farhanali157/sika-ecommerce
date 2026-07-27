@@ -1,153 +1,87 @@
-type DemoRole = "CUSTOMER" | "B2B" | "ADMIN"
+/**
+ * STRICTLY FOR UI FALLBACKS / SKELETON RENDER ONLY.
+ * 
+ * SECURITY NOTICE:
+ * This file contains static mock UI structure for navigation headers, footers, 
+ * and layout placeholders in the event of database connection latency or cold starts.
+ * 
+ * DO NOT import this file into src/auth.ts, src/auth.config.ts, or any login/API routes.
+ * Authentication and user validation must ONLY query the database.
+ */
 
-type DemoUser = {
-  id: string
-  email: string
-  name: string
-  role: DemoRole
-  password: string
-}
-
-type DemoCategory = {
+export interface DemoCategory {
   id: string
   name: string
   slug: string
   description: string
 }
 
-type DemoProduct = {
+export interface DemoProduct {
   id: string
   name: string
   slug: string
-  sku: string
-  description: string
   packSize: string
-  stockQty: number
-  categorySlug: string
-  tieredPrices: Array<{ id: string; minQty: number; price: number }>
-  tdsUrl?: string
-  sdsUrl?: string
+  description: string
+  retailPrice: number
 }
 
-export const demoUsers: Record<string, DemoUser> = {
-  "admin@sika.pk": {
-    id: "demo-admin",
-    email: "admin@sika.pk",
-    name: "Sika Super Admin",
-    role: "ADMIN",
-    password: "Admin@123456",
-  },
-  "contractor@buildcorp.pk": {
-    id: "demo-b2b",
-    email: "contractor@buildcorp.pk",
-    name: "BuildCorp Pakistan",
-    role: "B2B",
-    password: "Admin@123456",
-  },
-  "customer@gmail.com": {
-    id: "demo-customer",
-    email: "customer@gmail.com",
-    name: "Ali Khan",
-    role: "CUSTOMER",
-    password: "Admin@123456",
-  },
-}
-
-export const demoCategories: DemoCategory[] = [
+export const DEMO_CATEGORIES: DemoCategory[] = [
   {
-    id: "demo-waterproofing",
+    id: "cat-1",
     name: "Waterproofing",
     slug: "waterproofing",
-    description: "Cementitious and liquid applied waterproofing systems for roofs, basements and wet areas.",
+    description: "High-performance cementitious and liquid waterproofing membranes.",
   },
   {
-    id: "demo-concrete",
-    name: "Concrete Repair & Protection",
+    id: "cat-2",
+    name: "Sealing & Bonding",
+    slug: "sealing-bonding",
+    description: "Polyurethane and silicone sealants for joints and expansion gaps.",
+  },
+  {
+    id: "cat-3",
+    name: "Tile Adhesives",
+    slug: "tile-adhesives",
+    description: "Flexible tile adhesives and grouts for wet areas and commercial tiling.",
+  },
+  {
+    id: "cat-4",
+    name: "Concrete Repair",
     slug: "concrete-repair",
-    description: "Structural repair mortars, pore sealers and protective coatings for concrete structures.",
-  },
-  {
-    id: "demo-tiling",
-    name: "Tile Adhesives & Grouts",
-    slug: "tiling",
-    description: "High-performance tile adhesives, grouts and joint fillers for demanding installations.",
+    description: "Non-shrink grouts, structural repair mortars, and bonding agents.",
   },
 ]
 
-export const demoProducts: DemoProduct[] = [
+export const DEMO_PRODUCTS: DemoProduct[] = [
   {
-    id: "demo-product-1",
-    name: "SikaTop Seal-107",
+    id: "prod-1",
+    name: "SikaTop® Seal-107",
     slug: "sikatop-seal-107",
-    sku: "SKU-STS-107",
-    description: "Two-part polymer modified cementitious waterproof slurry mortar.",
-    packSize: "25 kg set",
-    stockQty: 150,
-    categorySlug: "waterproofing",
-    tdsUrl: "https://pk.sika.com/content/dam/dms/pk01/m/sikatop_seal-107.pdf",
-    sdsUrl: "https://pk.sika.com/content/dam/dms/pk01/s/sikatop_seal-107_sds.pdf",
-    tieredPrices: [
-      { id: "demo-tier-1", minQty: 1, price: 4200 },
-      { id: "demo-tier-2", minQty: 10, price: 3800 },
-      { id: "demo-tier-3", minQty: 50, price: 3450 },
-    ],
+    packSize: "25 kg Set",
+    description: "Two-part polymer modified cementitious waterproofing slurry mortar.",
+    retailPrice: 4800,
   },
   {
-    id: "demo-product-2",
-    name: "SikaGrout-214 PK",
+    id: "prod-2",
+    name: "SikaGrout®-214 PK",
     slug: "sikagrout-214-pk",
-    sku: "SKU-SGR-214",
-    description: "Shrinkage compensated cementitious precision grout for structural repairs.",
-    packSize: "20 kg bag",
-    stockQty: 200,
-    categorySlug: "concrete-repair",
-    tdsUrl: "https://pk.sika.com/content/dam/dms/pk01/g/sikagrout-214_pk.pdf",
-    tieredPrices: [
-      { id: "demo-tier-4", minQty: 1, price: 1850 },
-      { id: "demo-tier-5", minQty: 20, price: 1650 },
-      { id: "demo-tier-6", minQty: 100, price: 1480 },
-    ],
+    packSize: "25 kg Bag",
+    description: "One-part cementitious flowable non-shrink precision grout.",
+    retailPrice: 3200,
   },
   {
-    id: "demo-product-3",
-    name: "Sika Ceram-102 PK",
+    id: "prod-3",
+    name: "Sika® Ceram-102 PK",
     slug: "sika-ceram-102-pk",
-    sku: "SKU-SCR-102",
-    description: "High quality cementitious tile adhesive for ceramic tiling systems.",
-    packSize: "20 kg bag",
-    stockQty: 300,
-    categorySlug: "tiling",
-    tieredPrices: [
-      { id: "demo-tier-7", minQty: 1, price: 1250 },
-      { id: "demo-tier-8", minQty: 25, price: 1100 },
-      { id: "demo-tier-9", minQty: 100, price: 950 },
-    ],
+    packSize: "20 kg Bag",
+    description: "High quality polymer modified tile adhesive for indoor ceramic tiles.",
+    retailPrice: 1850,
   },
 ]
 
-export function getDemoUser(email: string) {
-  return demoUsers[email.trim().toLowerCase()]
-}
-
-export function getDemoCategoryBySlug(slug: string) {
-  const category = demoCategories.find((item) => item.slug === slug)
-  if (!category) return null
-
-  return {
-    ...category,
-    products: demoProducts
-      .filter((product) => product.categorySlug === slug)
-      .map((product) => ({ ...product, category })),
-  }
-}
-
-export function getDemoProductBySlug(slug: string) {
-  const product = demoProducts.find((item) => item.slug === slug)
-  if (!product) return null
-
-  const category = demoCategories.find((item) => item.slug === product.categorySlug)
-  return {
-    ...product,
-    category: category ?? demoCategories[0],
-  }
+export const DEMO_STORE_INFO = {
+  phone: "+92 42 111 232 688",
+  email: "info@pk.sika.com",
+  address: "Sika Pakistan Pvt Ltd, Commercial Area, Lahore, Pakistan",
+  operatingHours: "Mon - Fri: 9:00 AM - 5:30 PM",
 }

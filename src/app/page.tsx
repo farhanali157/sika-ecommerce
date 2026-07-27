@@ -2,61 +2,27 @@ import Link from "next/link"
 import { ArrowRight, ShieldCheck, Truck, Wrench, Package } from "lucide-react"
 import { prisma } from "@/lib/prisma"
 
-type TieredPriceSummary = {
-  id: string
-  minQty: number
-  price: number
-}
-
-type CategorySummary = {
-  id: string
-  slug: string
-  name: string
-}
-
-type FeaturedProduct = {
-  id: string
-  slug: string
-  name: string
-  description: string
-  packSize: string
-  tieredPrices: TieredPriceSummary[]
-}
-
 export default async function HomePage() {
-  let categories: CategorySummary[] = []
-  let featuredProducts: FeaturedProduct[] = []
+  let categories: any[] = []
+  let featuredProducts: any[] = []
+  let isDbOffline = false
 
   try {
     categories = await prisma.category.findMany({
       take: 4,
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-      },
     })
 
     featuredProducts = await prisma.product.findMany({
       take: 6,
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-        description: true,
-        packSize: true,
+      include: {
         tieredPrices: {
           orderBy: { minQty: "asc" },
-          select: {
-            id: true,
-            minQty: true,
-            price: true,
-          },
         },
       },
     })
   } catch (error) {
-    console.error("Home page DB fetch error:", error)
+    console.error("[Homepage] Database fetch degraded:", error)
+    isDbOffline = true
   }
 
   return (
@@ -115,22 +81,30 @@ export default async function HomePage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-          {categories.map((cat) => (
-            <Link
-              key={cat.id}
-              href={`/category/${cat.slug}`}
-              className="group rounded-xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md transition text-center flex flex-col items-center justify-center hover:border-amber-500"
-            >
-              <div className="h-16 w-16 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mb-4 group-hover:bg-amber-500 group-hover:text-black transition">
-                <Package className="h-8 w-8" />
-              </div>
-              <h3 className="font-bold text-gray-900 group-hover:text-amber-600 transition">
-                {cat.name}
-              </h3>
-            </Link>
-          ))}
-        </div>
+        {categories.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+            {categories.map((cat) => (
+              <Link
+                key={cat.id}
+                href={`/category/${cat.slug}`}
+                className="group rounded-xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md transition text-center flex flex-col items-center justify-center hover:border-amber-500"
+              >
+                <div className="h-16 w-16 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mb-4 group-hover:bg-amber-500 group-hover:text-black transition">
+                  <Package className="h-8 w-8" />
+                </div>
+                <h3 className="font-bold text-gray-900 group-hover:text-amber-600 transition">
+                  {cat.name}
+                </h3>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-gray-300 p-8 text-center text-gray-500 text-sm bg-white">
+            {isDbOffline
+              ? "Product categories are temporarily unavailable. Please check back shortly."
+              : "No categories currently available."}
+          </div>
+        )}
       </section>
 
       {/* 4. BEST SELLERS / FEATURED PRODUCTS */}
@@ -146,48 +120,57 @@ export default async function HomePage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {featuredProducts.map((product) => {
-            const retailPrice = product.tieredPrices.find((p) => p.minQty === 1)?.price ?? 0
+        {featuredProducts.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            {featuredProducts.map((product) => {
+              const retailPrice =
+                product.tieredPrices.find((p: any) => p.minQty === 1)?.price || 0
 
-            return (
-              <div
-                key={product.id}
-                className="group rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-lg transition flex flex-col justify-between"
-              >
-                <div>
-                  <div className="aspect-square w-full rounded-lg bg-gray-100 flex items-center justify-center font-bold text-gray-400 mb-4 border border-gray-100">
-                    [ {product.name} ]
-                  </div>
-                  <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded">
-                    {product.packSize}
-                  </span>
-                  <h3 className="mt-2 text-lg font-bold text-gray-900 group-hover:text-amber-600 transition">
-                    {product.name}
-                  </h3>
-                  <p className="mt-1 text-xs text-gray-500 line-clamp-2">
-                    {product.description}
-                  </p>
-                </div>
-
-                <div className="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between">
+              return (
+                <div
+                  key={product.id}
+                  className="group rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-lg transition flex flex-col justify-between"
+                >
                   <div>
-                    <span className="text-xs text-gray-400 block">Retail Price</span>
-                    <span className="text-lg font-black text-gray-900">
-                      Rs. {retailPrice.toLocaleString()}
+                    <div className="aspect-square w-full rounded-lg bg-gray-100 flex items-center justify-center font-bold text-gray-400 mb-4 border border-gray-100">
+                      [ {product.name} ]
+                    </div>
+                    <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded">
+                      {product.packSize}
                     </span>
+                    <h3 className="mt-2 text-lg font-bold text-gray-900 group-hover:text-amber-600 transition">
+                      {product.name}
+                    </h3>
+                    <p className="mt-1 text-xs text-gray-500 line-clamp-2">
+                      {product.description}
+                    </p>
                   </div>
-                  <Link
-                    href={`/product/${product.slug}`}
-                    className="bg-amber-500 hover:bg-amber-600 text-black text-xs font-bold px-4 py-2 rounded transition"
-                  >
-                    View Details
-                  </Link>
+
+                  <div className="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs text-gray-400 block">Retail Price</span>
+                      <span className="text-lg font-black text-gray-900">
+                        Rs. {retailPrice.toLocaleString()}
+                      </span>
+                    </div>
+                    <Link
+                      href={`/product/${product.slug}`}
+                      className="bg-amber-500 hover:bg-amber-600 text-black text-xs font-bold px-4 py-2 rounded transition"
+                    >
+                      View Details
+                    </Link>
+                  </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-gray-300 p-8 text-center text-gray-500 text-sm bg-gray-50">
+            {isDbOffline
+              ? "Featured catalog currently re-connecting. Browse our direct product categories above."
+              : "No featured products listed."}
+          </div>
+        )}
       </section>
     </div>
   )
