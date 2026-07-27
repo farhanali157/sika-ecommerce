@@ -1,3 +1,4 @@
+import "dotenv/config"
 import { PrismaClient, Role } from "@prisma/client"
 import { PrismaPg } from "@prisma/adapter-pg"
 import pg from "pg"
@@ -19,6 +20,7 @@ async function main() {
 
   const hashedPassword = await bcrypt.hash("Admin@123456", 10)
 
+  // 1. Seed Admin User
   await prisma.user.upsert({
     where: { email: "admin@sika.pk" },
     update: { passwordHash: hashedPassword },
@@ -30,6 +32,7 @@ async function main() {
     },
   })
 
+  // 2. Seed B2B User
   await prisma.user.upsert({
     where: { email: "contractor@buildcorp.pk" },
     update: { passwordHash: hashedPassword },
@@ -43,6 +46,7 @@ async function main() {
     },
   })
 
+  // 3. Seed Retail Customer User
   await prisma.user.upsert({
     where: { email: "customer@gmail.com" },
     update: { passwordHash: hashedPassword },
@@ -54,6 +58,7 @@ async function main() {
     },
   })
 
+  // 4. Seed Categories
   const waterproofing = await prisma.category.upsert({
     where: { slug: "waterproofing" },
     update: {},
@@ -84,6 +89,7 @@ async function main() {
     },
   })
 
+  // 5. Seed Products
   await prisma.product.upsert({
     where: { slug: "sikatop-seal-107" },
     update: {},
@@ -93,7 +99,6 @@ async function main() {
       sku: "SKU-STS-107",
       description: "Two-part polymer modified cementitious waterproof slurry mortar.",
       packSize: "25 kg set",
-      stockQty: 150,
       categoryId: waterproofing.id,
       tdsUrl: "https://pk.sika.com/content/dam/dms/pk01/m/sikatop_seal-107.pdf",
       sdsUrl: "https://pk.sika.com/content/dam/dms/pk01/s/sikatop_seal-107_sds.pdf",
@@ -116,7 +121,6 @@ async function main() {
       sku: "SKU-SGR-214",
       description: "1-component shrinkage compensated cementitious precision grout.",
       packSize: "20 kg bag",
-      stockQty: 200,
       categoryId: concreteRepair.id,
       tdsUrl: "https://pk.sika.com/content/dam/dms/pk01/g/sikagrout-214_pk.pdf",
       tieredPrices: {
@@ -138,7 +142,6 @@ async function main() {
       sku: "SKU-SCR-102",
       description: "High quality cementitious tile adhesive for ceramic tiles.",
       packSize: "20 kg bag",
-      stockQty: 300,
       categoryId: tiling.id,
       tieredPrices: {
         create: [
