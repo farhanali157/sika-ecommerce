@@ -27,16 +27,16 @@ export const authConfig = {
       return true
     },
     async jwt({ token, user }) {
-      if (user) {
-        token.role = user.role
-      }
-      return token
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.role = token.role as "CUSTOMER" | "B2B" | "ADMIN" | undefined
-      }
-      return session
+    if (user) {
+      token.role = (user.role as "CUSTOMER" | "B2B" | "ADMIN") || "CUSTOMER"
+    }
+    return token
+  },
+  async session({ session, token }) {
+    if (session.user) {
+      session.user.role = (token.role as "CUSTOMER" | "B2B" | "ADMIN") || "CUSTOMER"
+    }
+    return session
     },
   },
   providers: [], // Configured in main auth.ts
