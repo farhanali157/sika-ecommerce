@@ -1,9 +1,9 @@
 generator client {
-  provider        = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider = "postgresql"
 }
 
 enum Role {
@@ -16,8 +16,8 @@ model User {
   id           String    @id @default(cuid())
   email        String    @unique
   name         String?
-  companyName  String?   // Added back for B2B accounts
-  ntnNumber    String?   // Added back for B2B accounts
+  companyName  String?
+  ntnNumber    String?
   passwordHash String
   role         Role      @default(CUSTOMER)
   createdAt    DateTime  @default(now())
@@ -49,21 +49,32 @@ model Category {
   updatedAt   DateTime  @updatedAt
 }
 
+model ApplicationArea {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
 model Product {
-  id           String        @id @default(cuid())
-  sku          String        @unique
-  slug         String        @unique
-  name         String
-  description  String
-  packSize     String
-  tdsUrl       String?
-  sdsUrl       String?
-  categoryId   String
-  category     Category      @relation(fields: [categoryId], references: [id])
-  tieredPrices TieredPrice[]
-  orderItems   OrderItem[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id               String            @id @default(cuid())
+  sku              String            @unique
+  slug             String            @unique
+  name             String
+  description      String
+  packSize         String
+  tdsUrl           String?
+  sdsUrl           String?
+  categoryId       String
+  category         Category          @relation(fields: [categoryId], references: [id])
+  applicationAreas ApplicationArea[]
+  tieredPrices     TieredPrice[]
+  orderItems       OrderItem[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 }
 
 model TieredPrice {

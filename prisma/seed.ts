@@ -4,8 +4,6 @@ import { PrismaPg } from "@prisma/adapter-pg"
 import pg from "pg"
 import bcrypt from "bcryptjs"
 
-// Note: Standalone CLI Seed script requires an independent, isolated connection 
-// pool that explicitly closes pool execution on script exit via pool.end().
 const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL
 if (!connectionString) {
   throw new Error("DATABASE_URL or DIRECT_URL must be set in process.env")
@@ -89,7 +87,38 @@ async function main() {
     },
   })
 
-  // 5. Seed Products
+  // 5. Seed Application Areas
+  const roofsTerraces = await prisma.applicationArea.upsert({
+    where: { slug: "roofs-terraces" },
+    update: {},
+    create: {
+      name: "Roofs & Terraces",
+      slug: "roofs-terraces",
+      description: "Exposed and concealed waterproofing membranes for flat roofs, balconies, and parapets.",
+    },
+  })
+
+  const basementsFoundations = await prisma.applicationArea.upsert({
+    where: { slug: "basements-foundations" },
+    update: {},
+    create: {
+      name: "Basements & Foundations",
+      slug: "basements-foundations",
+      description: "Heavy duty waterproofing systems for below-grade structures and retaining walls.",
+    },
+  })
+
+  const wetAreas = await prisma.applicationArea.upsert({
+    where: { slug: "wet-areas-bathrooms" },
+    update: {},
+    create: {
+      name: "Wet Areas & Bathrooms",
+      slug: "wet-areas-bathrooms",
+      description: "Flexible under-tile waterproofing membranes and sealants for wet rooms.",
+    },
+  })
+
+  // 6. Seed Products
   await prisma.product.upsert({
     where: { slug: "sikatop-seal-107" },
     update: {},
@@ -102,6 +131,13 @@ async function main() {
       categoryId: waterproofing.id,
       tdsUrl: "https://pk.sika.com/content/dam/dms/pk01/m/sikatop_seal-107.pdf",
       sdsUrl: "https://pk.sika.com/content/dam/dms/pk01/s/sikatop_seal-107_sds.pdf",
+      applicationAreas: {
+        connect: [
+          { id: basementsFoundations.id },
+          { id: wetAreas.id },
+          { id: roofsTerraces.id },
+        ],
+      },
       tieredPrices: {
         create: [
           { minQty: 1, price: 4200.0 },
@@ -123,6 +159,11 @@ async function main() {
       packSize: "20 kg bag",
       categoryId: concreteRepair.id,
       tdsUrl: "https://pk.sika.com/content/dam/dms/pk01/g/sikagrout-214_pk.pdf",
+      applicationAreas: {
+        connect: [
+          { id: basementsFoundations.id },
+        ],
+      },
       tieredPrices: {
         create: [
           { minQty: 1, price: 1850.0 },
@@ -143,6 +184,11 @@ async function main() {
       description: "High quality cementitious tile adhesive for ceramic tiles.",
       packSize: "20 kg bag",
       categoryId: tiling.id,
+      applicationAreas: {
+        connect: [
+          { id: wetAreas.id },
+        ],
+      },
       tieredPrices: {
         create: [
           { minQty: 1, price: 1250.0 },
