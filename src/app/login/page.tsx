@@ -1,15 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { signIn } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { signIn, getSession } from "next-auth/react"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState("")
-  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -24,7 +22,14 @@ export default function LoginPage() {
       })
 
       if (res?.ok && !res?.error) {
-        window.location.assign("/admin")
+        const session = await getSession()
+        const role = session?.user?.role
+
+        if (role === "ADMIN") {
+          window.location.assign("/admin")
+        } else {
+          window.location.assign("/")
+        }
         return
       }
 

@@ -30,6 +30,7 @@ export default async function AreaPage({ params }: AreaPageProps) {
     })
   } catch (error) {
     console.error("Error fetching application area:", error)
+    throw error // Re-throw to trigger Next.js error boundary
   }
 
   if (!area) {

@@ -2,7 +2,7 @@ import Link from "next/link"
 import { Package, Search, ShoppingBag, Layers } from "lucide-react"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
-import { DEMO_CATEGORIES } from "@/lib/demo-data"
+import { DEMO_CATEGORIES, DEMO_AREAS } from "@/lib/demo-data"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +29,7 @@ export async function Navbar() {
   } catch (error) {
     console.error("Navbar DB fetch error:", error)
     categories = DEMO_CATEGORIES.map(({ id, name, slug }) => ({ id, name, slug }))
+    areas = DEMO_AREAS.map(({ id, name, slug }) => ({ id, name, slug }))
   }
 
   const session = await auth()

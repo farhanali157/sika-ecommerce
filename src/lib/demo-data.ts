@@ -16,6 +16,13 @@ export interface DemoCategory {
   description: string
 }
 
+export interface DemoArea {
+  id: string
+  name: string
+  slug: string
+  description: string
+}
+
 export interface DemoProduct {
   id: string
   name: string
@@ -49,6 +56,33 @@ export const DEMO_CATEGORIES: DemoCategory[] = [
     name: "Concrete Repair",
     slug: "concrete-repair",
     description: "Non-shrink grouts, structural repair mortars, and bonding agents.",
+  },
+]
+
+export const DEMO_AREAS: DemoArea[] = [
+  {
+    id: "area-1",
+    name: "Roofs & Terraces",
+    slug: "roofs-terraces",
+    description: "Waterproofing and protective solutions for exposed building roofs and open terraces.",
+  },
+  {
+    id: "area-2",
+    name: "Wet Areas & Bathrooms",
+    slug: "wet-areas-bathrooms",
+    description: "Sealing and tiling systems designed for high-humidity indoor wet zones.",
+  },
+  {
+    id: "area-3",
+    name: "Basements & Foundations",
+    slug: "basements-foundations",
+    description: "Heavy-duty underground structural waterproofing against hydrostatic pressure.",
+  },
+  {
+    id: "area-4",
+    name: "Flooring & Commercial Decks",
+    slug: "flooring-decks",
+    description: "Industrial grade concrete grouting, levelling, and joint sealing systems.",
   },
 ]
 
