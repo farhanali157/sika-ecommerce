@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Package, Search, ShoppingBag } from "lucide-react"
+import { Package, Search, ShoppingBag, Layers } from "lucide-react"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 import { DEMO_CATEGORIES } from "@/lib/demo-data"
@@ -13,11 +13,19 @@ import { NavActions } from "./nav-actions"
 
 export async function Navbar() {
   let categories: { id: string; name: string; slug: string }[] = []
+  let areas: { id: string; name: string; slug: string }[] = []
 
   try {
-    categories = await prisma.category.findMany({
-      select: { id: true, name: true, slug: true },
-    })
+    const [fetchedCategories, fetchedAreas] = await Promise.all([
+      prisma.category.findMany({
+        select: { id: true, name: true, slug: true },
+      }),
+      prisma.applicationArea.findMany({
+        select: { id: true, name: true, slug: true },
+      }),
+    ])
+    categories = fetchedCategories
+    areas = fetchedAreas
   } catch (error) {
     console.error("Navbar DB fetch error:", error)
     categories = DEMO_CATEGORIES.map(({ id, name, slug }) => ({ id, name, slug }))
@@ -42,7 +50,7 @@ export async function Navbar() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-4">
           
-          {/* Logo & Category Dropdown */}
+          {/* Logo & Navigation Dropdowns */}
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2">
               <span className="bg-amber-500 text-black font-black text-xl px-2.5 py-1 rounded tracking-tighter">
@@ -50,6 +58,7 @@ export async function Navbar() {
               </span>
             </Link>
 
+            {/* Categories Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-semibold text-gray-700 hover:text-amber-600 transition outline-none">
                 <Package className="h-4 w-4" /> Categories
@@ -65,6 +74,29 @@ export async function Navbar() {
                     </Link>
                   </DropdownMenuItem>
                 ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Application Areas Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-semibold text-gray-700 hover:text-amber-600 transition outline-none">
+                <Layers className="h-4 w-4" /> Shop by Area
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56 bg-white border border-gray-200 shadow-md rounded-lg p-1">
+                {areas.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-gray-400">No areas found</div>
+                ) : (
+                  areas.map((area) => (
+                    <DropdownMenuItem key={area.id} asChild>
+                      <Link
+                        href={`/area/${area.slug}`}
+                        className="block px-3 py-2 text-sm font-medium text-gray-700 hover:bg-amber-50 hover:text-amber-600 rounded-md transition"
+                      >
+                        {area.name}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
