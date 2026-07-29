@@ -1,5 +1,5 @@
 import "dotenv/config"
-import { PrismaClient, Role } from "@prisma/client"
+import { PrismaClient, Role, OrderStatus } from "@prisma/client"
 import { PrismaPg } from "@prisma/adapter-pg"
 import pg from "pg"
 import bcrypt from "bcryptjs"
@@ -31,7 +31,7 @@ async function main() {
   })
 
   // 2. Seed B2B User
-  await prisma.user.upsert({
+  const b2bUser = await prisma.user.upsert({
     where: { email: "contractor@buildcorp.pk" },
     update: { passwordHash: hashedPassword },
     create: {
@@ -45,7 +45,7 @@ async function main() {
   })
 
   // 3. Seed Retail Customer User
-  await prisma.user.upsert({
+  const customerUser = await prisma.user.upsert({
     where: { email: "customer@gmail.com" },
     update: { passwordHash: hashedPassword },
     create: {
@@ -135,7 +135,7 @@ async function main() {
   ]
 
   // 6. Seed Products
-  await prisma.product.upsert({
+  const sikatopProduct = await prisma.product.upsert({
     where: { slug: "sikatop-seal-107" },
     update: {
       images: sikatopImages,
@@ -169,7 +169,7 @@ async function main() {
     },
   })
 
-  await prisma.product.upsert({
+  const sikagroutProduct = await prisma.product.upsert({
     where: { slug: "sikagrout-214-pk" },
     update: {
       images: sikagroutImages,
@@ -226,6 +226,93 @@ async function main() {
       },
     },
   })
+
+  // 7. Seed Dummy Orders across all OrderStatus lifecycle states
+  const dummyOrders = [
+    {
+      userId: customerUser.id,
+      customerName: "Ali Khan",
+      customerEmail: "customer@gmail.com",
+      customerPhone: "+92 300 1234567",
+      shippingAddress: "House 12, Street 4, Sector F-7/2, Islamabad",
+      totalAmount: 9900.0,
+      status: OrderStatus.PENDING,
+      productId: sikatopProduct.id,
+      quantity: 2,
+      unitPrice: 4200.0,
+    },
+    {
+      userId: b2bUser.id,
+      customerName: "BuildCorp Pakistan",
+      customerEmail: "contractor@buildcorp.pk",
+      customerPhone: "+92 321 9876543",
+      shippingAddress: "Plot 45-B, Industrial Area, Gulberg III, Lahore",
+      totalAmount: 172500.0,
+      status: OrderStatus.PROCESSING,
+      productId: sikatopProduct.id,
+      quantity: 50,
+      unitPrice: 3450.0,
+    },
+    {
+      userId: null, // Guest Checkout
+      customerName: "Tariq Mahmood",
+      customerEmail: "tariq.m@gmail.com",
+      customerPhone: "+92 333 4567890",
+      shippingAddress: "Suite 301, Commercial Zone, Phase 5 DHA, Karachi",
+      totalAmount: 10250.0,
+      status: OrderStatus.DISPATCHED,
+      productId: sikagroutProduct.id,
+      quantity: 5,
+      unitPrice: 1750.0,
+    },
+    {
+      userId: customerUser.id,
+      customerName: "Ali Khan",
+      customerEmail: "customer@gmail.com",
+      customerPhone: "+92 300 1234567",
+      shippingAddress: "House 12, Street 4, Sector F-7/2, Islamabad",
+      totalAmount: 22000.0,
+      status: OrderStatus.DELIVERED,
+      productId: sikagroutProduct.id,
+      quantity: 12,
+      unitPrice: 1650.0,
+    },
+    {
+      userId: null, // Guest Checkout
+      customerName: "Usman Raza",
+      customerEmail: "usman.raza@yahoo.com",
+      customerPhone: "+92 302 7788990",
+      shippingAddress: "Flat 4A, Executive Heights, Multan",
+      totalAmount: 5700.0,
+      status: OrderStatus.CANCELLED,
+      productId: sikatopProduct.id,
+      quantity: 1,
+      unitPrice: 4200.0,
+    },
+  ]
+
+  for (const orderData of dummyOrders) {
+    await prisma.order.create({
+      data: {
+        userId: orderData.userId ?? undefined,
+        customerName: orderData.customerName,
+        customerEmail: orderData.customerEmail,
+        customerPhone: orderData.customerPhone,
+        shippingAddress: orderData.shippingAddress,
+        totalAmount: orderData.totalAmount,
+        status: orderData.status,
+        items: {
+          create: [
+            {
+              productId: orderData.productId,
+              quantity: orderData.quantity,
+              unitPrice: orderData.unitPrice,
+            },
+          ],
+        },
+      },
+    })
+  }
 
   console.log("Seeding completed successfully!")
 }
