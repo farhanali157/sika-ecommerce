@@ -24,6 +24,7 @@ model User {
   updatedAt    DateTime  @updatedAt
   addresses    Address[]
   orders       Order[]
+  cart         Cart?     // <-- Back-relation to Cart
 }
 
 model Address {
@@ -74,6 +75,7 @@ model Product {
   applicationAreas ApplicationArea[]
   tieredPrices     TieredPrice[]
   orderItems       OrderItem[]
+  cartItems        CartItem[]        // <-- Back-relation to CartItem
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 }
@@ -81,13 +83,35 @@ model Product {
 model TieredPrice {
   id        String   @id @default(cuid())
   productId String
-  minQty    Int
-  price     Float
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  minQty    Int
+  price     Decimal  @db.Decimal(10, 2)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([productId, minQty])
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String?    @unique
+  user      User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  cartId    String
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cartId, productId])
 }
 
 model Order {

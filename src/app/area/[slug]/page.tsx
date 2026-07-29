@@ -60,8 +60,13 @@ export default async function AreaPage({ params }: AreaPageProps) {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {area.products.map((product) => {
-            const basePrice = product.tieredPrices[0]?.price ?? 0
-            const maxDiscountPrice = product.tieredPrices[product.tieredPrices.length - 1]?.price
+            const rawBasePrice = product.tieredPrices[0]?.price ?? 0
+            const basePrice = typeof rawBasePrice === "number" ? rawBasePrice : Number(rawBasePrice)
+
+            const rawMaxDiscountPrice = product.tieredPrices[product.tieredPrices.length - 1]?.price
+            const maxDiscountPrice = rawMaxDiscountPrice !== undefined
+              ? (typeof rawMaxDiscountPrice === "number" ? rawMaxDiscountPrice : Number(rawMaxDiscountPrice))
+              : null
 
             return (
               <div
@@ -91,7 +96,7 @@ export default async function AreaPage({ params }: AreaPageProps) {
                     <p className="text-lg font-black text-gray-900">
                       PKR {basePrice.toLocaleString()}
                     </p>
-                    {isB2B && maxDiscountPrice && maxDiscountPrice < basePrice && (
+                    {isB2B && maxDiscountPrice !== null && maxDiscountPrice < basePrice && (
                       <p className="text-[11px] font-bold text-emerald-600">
                         B2B Tiered: As low as PKR {maxDiscountPrice.toLocaleString()}
                       </p>

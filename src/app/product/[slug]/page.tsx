@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { FileText, ShieldAlert, Lock, Layers, ExternalLink, CheckCircle2 } from "lucide-react"
+import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 import { ProductImageGallery } from "@/components/product-image-gallery"
@@ -12,7 +13,7 @@ type Props = {
 type TieredPriceSummary = {
   id: string
   minQty: number
-  price: number
+  price: number | Prisma.Decimal
 }
 
 type ProductDetailPageData = {
@@ -88,7 +89,8 @@ export default async function ProductDetailPage({ params }: Props) {
 
   if (!product) return notFound()
 
-  const retailPrice = product.tieredPrices[0]?.price ?? 0
+  const rawRetailPrice = product.tieredPrices[0]?.price ?? 0
+  const retailPrice = typeof rawRetailPrice === "number" ? rawRetailPrice : Number(rawRetailPrice)
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
@@ -104,7 +106,7 @@ export default async function ProductDetailPage({ params }: Props) {
       </nav>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
-        {/* Left Column: Interactive Multi-Image Gallery */}
+        {/* Left Column: Multi-Image Gallery */}
         <ProductImageGallery
           images={product.images}
           productName={product.name}
@@ -184,17 +186,20 @@ export default async function ProductDetailPage({ params }: Props) {
 
             {isB2B ? (
               <div className="space-y-2">
-                {product.tieredPrices.map((tier) => (
-                  <div
-                    key={tier.id}
-                    className="flex justify-between items-center text-xs py-2 px-3 bg-white rounded-lg border border-gray-200"
-                  >
-                    <span className="font-semibold text-gray-700">Orders of {tier.minQty}+ units</span>
-                    <span className="font-extrabold text-gray-900">
-                      PKR {tier.price.toLocaleString()} / unit
-                    </span>
-                  </div>
-                ))}
+                {product.tieredPrices.map((tier) => {
+                  const priceNum = typeof tier.price === "number" ? tier.price : Number(tier.price)
+                  return (
+                    <div
+                      key={tier.id}
+                      className="flex justify-between items-center text-xs py-2 px-3 bg-white rounded-lg border border-gray-200"
+                    >
+                      <span className="font-semibold text-gray-700">Orders of {tier.minQty}+ units</span>
+                      <span className="font-extrabold text-gray-900">
+                        PKR {priceNum.toLocaleString()} / unit
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             ) : (
               <div className="flex items-start gap-3 text-xs text-amber-900 bg-amber-50 p-3.5 rounded-lg border border-amber-200">

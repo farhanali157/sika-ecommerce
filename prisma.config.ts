@@ -1,6 +1,10 @@
 import "dotenv/config";
 import { defineConfig, env } from "prisma/config";
 
+const isCliCommand = process.argv.some((arg) => 
+  ["migrate", "db", "studio"].some((cmd) => arg.includes(cmd))
+);
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
@@ -8,6 +12,6 @@ export default defineConfig({
     seed: "npx tsx prisma/seed.ts",
   },
   datasource: {
-    url: env("DATABASE_URL"),
+    url: isCliCommand && env("DIRECT_URL") ? env("DIRECT_URL") : env("DATABASE_URL"),
   },
 });

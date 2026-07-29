@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { ArrowRight, ShieldCheck, Truck, Wrench, Package } from "lucide-react"
+import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 
 type CategorySummary = {
@@ -11,7 +12,7 @@ type CategorySummary = {
 type TieredPrice = {
   id: string
   minQty: number
-  price: number
+  price: number | Prisma.Decimal
 }
 
 type FeaturedProduct = {
@@ -159,8 +160,10 @@ export default async function HomePage() {
         {featuredProducts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
             {featuredProducts.map((product) => {
+              const rawRetailPrice =
+                product.tieredPrices.find((p) => p.minQty === 1)?.price ?? 0
               const retailPrice =
-                product.tieredPrices.find((p) => p.minQty === 1)?.price || 0
+                typeof rawRetailPrice === "number" ? rawRetailPrice : Number(rawRetailPrice)
 
               return (
                 <div

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
+import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 
 type Props = {
@@ -9,13 +10,13 @@ type Props = {
 type TieredPriceSummary = {
   id: string
   minQty: number
-  price: number
+  price: number | Prisma.Decimal
 }
 
 type CategoryProduct = {
   id: string
-  slug: string
   name: string
+  slug: string
   description: string
   packSize: string
   tieredPrices: TieredPriceSummary[]
@@ -30,6 +31,7 @@ type CategoryPageData = {
 
 export default async function CategoryPage({ params }: Props) {
   const { slug } = await params
+
   let category: CategoryPageData | null = null
 
   try {
@@ -42,11 +44,12 @@ export default async function CategoryPage({ params }: Props) {
         products: {
           select: {
             id: true,
-            slug: true,
             name: true,
+            slug: true,
             description: true,
             packSize: true,
             tieredPrices: {
+              orderBy: { minQty: "asc" },
               select: {
                 id: true,
                 minQty: true,
@@ -65,38 +68,54 @@ export default async function CategoryPage({ params }: Props) {
   if (!category) return notFound()
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="border-b border-gray-200 pb-5 mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">{category.name}</h1>
-        <p className="mt-2 text-sm text-gray-500">{category.description}</p>
+    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      <nav className="flex text-xs font-medium text-gray-500 mb-6 gap-2 items-center">
+        <Link href="/" className="hover:text-amber-600 transition">
+          Home
+        </Link>
+        <span>/</span>
+        <span className="text-gray-900 font-semibold">{category.name}</span>
+      </nav>
+
+      <div className="mb-8">
+        <h1 className="text-3xl font-black text-gray-900 tracking-tight">{category.name}</h1>
+        {category.description && (
+          <p className="text-sm text-gray-600 mt-2">{category.description}</p>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {category.products.map((product) => {
-          const retailPrice = product.tieredPrices.find((p) => p.minQty === 1)?.price ?? 0
+          const rawPrice = product.tieredPrices[0]?.price ?? 0
+          const basePrice = typeof rawPrice === "number" ? rawPrice : Number(rawPrice)
 
           return (
-            <Link
+            <div
               key={product.id}
-              href={`/product/${product.slug}`}
-              className="group rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow-md"
+              className="flex flex-col justify-between rounded-xl border border-gray-200 bg-white p-6 shadow-sm hover:border-amber-400 transition"
             >
-              <div className="aspect-square w-full rounded-lg bg-gray-100 flex items-center justify-center font-bold text-gray-400">
-                [ {product.name} Image ]
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 mb-1">{product.name}</h3>
+                <p className="text-xs text-gray-500 mb-3">Pack Size: {product.packSize}</p>
+                <p className="text-xs text-gray-600 line-clamp-3 mb-4">{product.description}</p>
               </div>
-              <h3 className="mt-4 text-lg font-semibold text-gray-900 group-hover:text-amber-600">
-                {product.name}
-              </h3>
-              <p className="mt-1 text-sm text-gray-500 line-clamp-2">{product.description}</p>
-              <div className="mt-4 flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                  {product.packSize}
-                </span>
-                <span className="text-lg font-bold text-amber-600">
-                  Rs. {retailPrice.toLocaleString()}
-                </span>
+
+              <div>
+                <div className="border-t border-gray-100 pt-3 mb-4 flex justify-between items-baseline">
+                  <span className="text-xs text-gray-500">Retail Price:</span>
+                  <span className="text-base font-black text-gray-900">
+                    PKR {basePrice.toLocaleString()}
+                  </span>
+                </div>
+
+                <Link
+                  href={`/product/${product.slug}`}
+                  className="block w-full text-center text-xs font-bold text-amber-900 bg-amber-400 hover:bg-amber-500 py-2.5 rounded-lg transition"
+                >
+                  View Details & Bulk Tiers
+                </Link>
               </div>
-            </Link>
+            </div>
           )
         })}
       </div>
