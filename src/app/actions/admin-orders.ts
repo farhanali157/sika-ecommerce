@@ -5,10 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { OrderStatus } from "@prisma/client"
 import { revalidatePath } from "next/cache"
 
-/**
- * Helper to enforce strict Admin authorization
- */
-async function requireAdmin() {
+export async function requireAdmin() {
   const session = await auth()
   if (!session?.user || session.user.role !== "ADMIN") {
     throw new Error("Unauthorized: Admin access required.")
@@ -16,11 +13,14 @@ async function requireAdmin() {
   return session
 }
 
-export async function getAdminOrders() {
+export async function getAdminOrders(statusFilter?: string) {
   try {
     await requireAdmin()
 
+    const isValidStatus = statusFilter && Object.values(OrderStatus).includes(statusFilter as OrderStatus)
+
     const orders = await prisma.order.findMany({
+      where: isValidStatus ? { status: statusFilter as OrderStatus } : undefined,
       orderBy: { createdAt: "desc" },
       include: {
         user: {
@@ -66,6 +66,7 @@ export async function updateOrderStatus(orderId: string, newStatus: OrderStatus)
     })
 
     revalidatePath("/admin/orders")
+    revalidatePath(`/admin/orders/${orderId}`)
     return { success: true, status: updatedOrder.status }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to update order status"
