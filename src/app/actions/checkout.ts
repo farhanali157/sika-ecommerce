@@ -30,7 +30,10 @@ export async function createOrder(input: CreateOrderInput) {
 
     // Execute Read, Price Snapshot, Order Creation, and Cart Wipe inside ONE atomic Transaction
     const result = await prisma.$transaction(async (tx) => {
-      // 1. READ INSIDE TX: Isolated from concurrent cart mutations
+      // 1. ROW-LEVEL LOCK (FOR UPDATE): Prevents concurrent transaction race conditions across serverless instances
+      await tx.$executeRaw`SELECT id FROM "Cart" WHERE id = ${activeCart.id} FOR UPDATE`
+
+      // 2. READ INSIDE TX (Now strictly synchronized)
       const dbCart = await tx.cart.findUnique({
         where: { id: activeCart.id },
         include: {
@@ -48,12 +51,12 @@ export async function createOrder(input: CreateOrderInput) {
         },
       })
 
-      // Idempotency / Double-Submit Guard: Throw clean error if cart is already wiped
+      // Idempotency / Double-Submit Guard
       if (!dbCart || dbCart.items.length === 0) {
         throw new Error("Your cart is empty or this order has already been processed.")
       }
 
-      // 2. Resolve User Ownership (NO silent user upserting)
+      // 3. Resolve User Ownership
       let orderUserId: string | null = sessionUserId || null
 
       if (!orderUserId && sessionEmail) {
@@ -65,7 +68,7 @@ export async function createOrder(input: CreateOrderInput) {
         }
       }
 
-      // 3. Calculate Cart Subtotal inside isolation boundary
+      // 4. Calculate Cart Subtotal inside isolation boundary
       const cartSummary = calculateCartSubtotal(dbCart.items, userRole)
 
       if (cartSummary.items.length === 0) {
@@ -76,10 +79,10 @@ export async function createOrder(input: CreateOrderInput) {
       const shippingFee = subtotal > 50000 ? 0 : 1500
       const grandTotal = subtotal + shippingFee
 
-      // 4. Create Order with snapshot details (Works for both Logged-In and Guest users)
+      // 5. Create Order with snapshot details
       const newOrder = await tx.order.create({
         data: {
-          userId: orderUserId ?? undefined, // Nullable for guests
+          userId: orderUserId ?? undefined,
           status: "PENDING",
           totalAmount: grandTotal,
           customerName: input.customerName,
@@ -98,7 +101,7 @@ export async function createOrder(input: CreateOrderInput) {
         include: { items: true },
       })
 
-      // 5. Atomic Cart Wipe
+      // 6. Atomic Cart Wipe
       await tx.cartItem.deleteMany({
         where: { cartId: activeCart.id },
       })
