@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 import { ProductImageGallery } from "@/components/product-image-gallery"
+import { AddToCartButton } from "@/components/add-to-cart-button"
 
 type Props = {
   params: Promise<{ slug: string }>
@@ -126,6 +127,11 @@ export default async function ProductDetailPage({ params }: Props) {
               PKR {retailPrice.toLocaleString()}
               <span className="text-xs text-gray-500 font-normal ml-2">(Retail Base Price)</span>
             </p>
+          </div>
+
+          {/* Add to Cart Component */}
+          <div className="pt-2">
+            <AddToCartButton productId={product.id} />
           </div>
 
           <p className="text-sm text-gray-700 leading-relaxed">{product.description}</p>

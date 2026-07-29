@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Package, Search, ShoppingBag, Layers } from "lucide-react"
+import { Package, Search, Layers } from "lucide-react"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 import { DEMO_CATEGORIES, DEMO_AREAS } from "@/lib/demo-data"
@@ -117,13 +117,6 @@ export async function Navbar() {
           {/* User Auth Actions & Cart */}
           <div className="flex items-center gap-4">
             <NavActions session={session} />
-            
-            <button className="relative p-2 text-gray-700 hover:text-amber-600 transition">
-              <ShoppingBag className="h-5 w-5" />
-              <span className="absolute top-0 right-0 h-4 w-4 rounded-full bg-amber-500 text-[10px] font-bold text-black flex items-center justify-center">
-                0
-              </span>
-            </button>
           </div>
 
         </div>
