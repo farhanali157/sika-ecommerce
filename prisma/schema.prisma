@@ -61,11 +61,12 @@ model ApplicationArea {
 
 model Product {
   id               String            @id @default(cuid())
-  sku              String            @unique
-  slug             String            @unique
   name             String
+  slug             String            @unique
+  sku              String            @unique
   description      String
   packSize         String
+  images           String[]          @default([])
   tdsUrl           String?
   sdsUrl           String?
   categoryId       String

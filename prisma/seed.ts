@@ -118,10 +118,30 @@ async function main() {
     },
   })
 
+  // Sample High-Res Images for Sika Product Displays
+  const sikatopImages = [
+    "https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=800&q=80",
+  ]
+
+  const sikagroutImages = [
+    "https://images.unsplash.com/photo-1541888946425-d0fbb186a5b3?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=800&q=80",
+  ]
+
+  const sikaceramImages = [
+    "https://images.unsplash.com/photo-1615873968403-89e068629265?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80",
+  ]
+
   // 6. Seed Products
   await prisma.product.upsert({
     where: { slug: "sikatop-seal-107" },
-    update: {},
+    update: {
+      images: sikatopImages,
+      tdsUrl: "https://pk.sika.com/content/dam/dms/pk01/m/sikatop_seal-107.pdf",
+      sdsUrl: "https://pk.sika.com/content/dam/dms/pk01/s/sikatop_seal-107_sds.pdf",
+    },
     create: {
       name: "SikaTop Seal-107",
       slug: "sikatop-seal-107",
@@ -129,6 +149,7 @@ async function main() {
       description: "Two-part polymer modified cementitious waterproof slurry mortar.",
       packSize: "25 kg set",
       categoryId: waterproofing.id,
+      images: sikatopImages,
       tdsUrl: "https://pk.sika.com/content/dam/dms/pk01/m/sikatop_seal-107.pdf",
       sdsUrl: "https://pk.sika.com/content/dam/dms/pk01/s/sikatop_seal-107_sds.pdf",
       applicationAreas: {
@@ -150,7 +171,10 @@ async function main() {
 
   await prisma.product.upsert({
     where: { slug: "sikagrout-214-pk" },
-    update: {},
+    update: {
+      images: sikagroutImages,
+      tdsUrl: "https://pk.sika.com/content/dam/dms/pk01/g/sikagrout-214_pk.pdf",
+    },
     create: {
       name: "SikaGrout-214 PK",
       slug: "sikagrout-214-pk",
@@ -158,6 +182,7 @@ async function main() {
       description: "1-component shrinkage compensated cementitious precision grout.",
       packSize: "20 kg bag",
       categoryId: concreteRepair.id,
+      images: sikagroutImages,
       tdsUrl: "https://pk.sika.com/content/dam/dms/pk01/g/sikagrout-214_pk.pdf",
       applicationAreas: {
         connect: [
@@ -176,7 +201,9 @@ async function main() {
 
   await prisma.product.upsert({
     where: { slug: "sika-ceram-102-pk" },
-    update: {},
+    update: {
+      images: sikaceramImages,
+    },
     create: {
       name: "Sika Ceram-102 PK",
       slug: "sika-ceram-102-pk",
@@ -184,6 +211,7 @@ async function main() {
       description: "High quality cementitious tile adhesive for ceramic tiles.",
       packSize: "20 kg bag",
       categoryId: tiling.id,
+      images: sikaceramImages,
       applicationAreas: {
         connect: [
           { id: wetAreas.id },

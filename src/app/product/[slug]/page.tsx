@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import { FileText, ShieldAlert, Lock, Package, Layers, ExternalLink, CheckCircle2 } from "lucide-react"
+import { FileText, ShieldAlert, Lock, Layers, ExternalLink, CheckCircle2 } from "lucide-react"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
+import { ProductImageGallery } from "@/components/product-image-gallery"
 
 type Props = {
   params: Promise<{ slug: string }>
@@ -21,6 +22,7 @@ type ProductDetailPageData = {
   sku: string
   description: string
   packSize: string
+  images: string[]
   tdsUrl: string | null
   sdsUrl: string | null
   category: {
@@ -53,6 +55,7 @@ export default async function ProductDetailPage({ params }: Props) {
         sku: true,
         description: true,
         packSize: true,
+        images: true,
         tdsUrl: true,
         sdsUrl: true,
         category: {
@@ -101,17 +104,12 @@ export default async function ProductDetailPage({ params }: Props) {
       </nav>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
-        {/* Left Column: Image Gallery Placeholder */}
-        <div className="space-y-4">
-          <div className="aspect-square w-full rounded-2xl bg-neutral-900 flex flex-col items-center justify-center text-gray-400 p-8 border border-neutral-800 shadow-sm relative overflow-hidden">
-            <span className="bg-amber-500 text-black text-xs font-black px-3 py-1 rounded tracking-wider uppercase mb-4">
-              SIKA OFFICIAL
-            </span>
-            <Package className="h-20 w-20 text-neutral-700 mb-2" />
-            <p className="text-sm font-bold text-gray-300 text-center">{product.name}</p>
-            <p className="text-xs text-neutral-500 mt-1 font-mono">{product.sku}</p>
-          </div>
-        </div>
+        {/* Left Column: Interactive Multi-Image Gallery */}
+        <ProductImageGallery
+          images={product.images}
+          productName={product.name}
+          sku={product.sku}
+        />
 
         {/* Right Column: Product Overview & Specifications */}
         <div className="space-y-6">
