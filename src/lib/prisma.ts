@@ -6,24 +6,27 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-let prisma: PrismaClient
-
-if (!globalForPrisma.prisma) {
+function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL
 
   const pool = new pg.Pool({
     connectionString,
-    max: 10,
-    idleTimeoutMillis: 30000,
+    // In serverless, limit each lambda instance to 1-2 connections max
+    max: process.env.NODE_ENV === "production" ? 1 : 5,
+    idleTimeoutMillis: 10000,
+    connectionTimeoutMillis: 5000,
   })
-  const adapter = new PrismaPg(pool)
-  prisma = new PrismaClient({ adapter })
 
-  if (process.env.NODE_ENV !== "production") {
-    globalForPrisma.prisma = prisma
-  }
-} else {
-  prisma = globalForPrisma.prisma
+  const adapter = new PrismaPg(pool)
+  return new PrismaClient({ adapter })
 }
 
-export { prisma }
+// Always reuse global instance across warm serverless lambdas in production
+export const prisma = globalForPrisma.prisma ?? createPrismaClient()
+
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = prisma
+} else {
+  // Cache in production to prevent pool leaks across warm serverless functions
+  globalForPrisma.prisma = prisma
+}
