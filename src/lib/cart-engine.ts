@@ -11,6 +11,17 @@ export type CalculatedItemPrice = {
   appliedTier: number | null
 }
 
+export type CartItemWithProduct = {
+  id: string
+  productId: string
+  quantity: number
+  product: {
+    name: string
+    slug: string
+    tieredPrices: TierPriceInput[]
+  }
+}
+
 export function calculateItemPrice(
   tieredPrices: TierPriceInput[],
   quantity: number,
@@ -45,5 +56,42 @@ export function calculateItemPrice(
     unitPrice: activePrice,
     totalPrice: activePrice * quantity,
     appliedTier: matchingTier ? matchingTier.minQty : null,
+  }
+}
+
+export function calculateCartSubtotal(
+  items: CartItemWithProduct[],
+  userRole?: string
+) {
+  const isB2B = userRole === "B2B" || userRole === "ADMIN"
+  let subtotal = 0
+  let totalItems = 0
+
+  const calculatedItems = items.map((item) => {
+    const { unitPrice, totalPrice, appliedTier } = calculateItemPrice(
+      item.product.tieredPrices,
+      item.quantity,
+      isB2B
+    )
+
+    subtotal += totalPrice
+    totalItems += item.quantity
+
+    return {
+      id: item.id,
+      productId: item.productId,
+      productName: item.product.name,
+      productSlug: item.product.slug,
+      quantity: item.quantity,
+      unitPrice,
+      totalPrice,
+      appliedTier,
+    }
+  })
+
+  return {
+    items: calculatedItems,
+    subtotal,
+    totalItems,
   }
 }
