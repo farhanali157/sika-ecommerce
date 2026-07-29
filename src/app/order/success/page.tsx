@@ -13,19 +13,34 @@ export default async function OrderSuccessPage({ searchParams }: Props) {
   const { orderId } = await searchParams
   const session = await auth()
 
-  // IDOR Protection: Restrict lookup to authenticated owner or verify request context
-  const order = orderId
-    ? await prisma.order.findFirst({
-        where: {
-          id: orderId,
-          ...(session?.user?.id ? { userId: session.user.id } : {}),
-        },
-        select: {
-          id: true,
-          totalAmount: true,
-        },
-      })
-    : null
+  if (!orderId) {
+    return (
+      <div className="min-h-screen bg-gray-50/50 py-16 flex items-center justify-center">
+        <div className="max-w-md w-full mx-auto px-4 text-center space-y-4">
+          <p className="text-sm font-semibold text-gray-700">No order reference provided.</p>
+          <Link href="/" className="text-xs text-amber-600 font-bold hover:underline">
+            Return to Store
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  // AUTHORIZATION MODEL:
+  // 1. If logged in, strict account ownership (order.userId === session.user.id) is enforced.
+  // 2. If guest, possession of the unguessable CUID orderId serves as authorized token.
+  const order = await prisma.order.findFirst({
+    where: {
+      id: orderId,
+      ...(session?.user?.id ? { userId: session.user.id } : {}),
+    },
+    select: {
+      id: true,
+      totalAmount: true,
+      customerName: true,
+      shippingAddress: true,
+    },
+  })
 
   return (
     <div className="min-h-screen bg-gray-50/50 py-16 flex items-center justify-center">
@@ -38,7 +53,7 @@ export default async function OrderSuccessPage({ searchParams }: Props) {
           </p>
 
           <div className="bg-gray-100 p-3 rounded-xl font-mono text-sm font-bold text-gray-800 break-all">
-            {orderId || "SIKA-CONFIRMED"}
+            {orderId}
           </div>
 
           {order && (
@@ -49,6 +64,14 @@ export default async function OrderSuccessPage({ searchParams }: Props) {
                   PKR {Number(order.totalAmount).toLocaleString()}
                 </span>
               </div>
+              {order.shippingAddress && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Shipping To:</span>
+                  <span className="font-semibold text-gray-800 truncate max-w-xs">
+                    {order.shippingAddress}
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
