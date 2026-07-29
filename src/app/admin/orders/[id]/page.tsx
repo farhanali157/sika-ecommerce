@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/app/actions/admin-orders";
 import { OrderStatusSelect } from "../order-status-select";
+import { EditOrderModal } from "./edit-order-modal";
 import {
   ArrowLeft,
   Building2,
@@ -56,6 +57,10 @@ export default async function AdminOrderDetailPage({ params }: Props) {
   }
 
   const isB2B = order.user?.role === "B2B";
+  const isLocked =
+    order.status === "DISPATCHED" ||
+    order.status === "DELIVERED" ||
+    order.status === "CANCELLED";
 
   return (
     <div className="p-6 md:p-8 max-w-5xl mx-auto space-y-6">
@@ -89,11 +94,36 @@ export default async function AdminOrderDetailPage({ params }: Props) {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-bold text-gray-500">
-            Fulfillment Status:
-          </span>
-          <OrderStatusSelect orderId={order.id} currentStatus={order.status} />
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Edit Order Modal Trigger */}
+          <EditOrderModal
+            orderId={order.id}
+            customerName={
+              order.customerName || order.user?.name || "Guest Customer"
+            }
+            customerEmail={order.customerEmail || order.user?.email || ""}
+            customerPhone={order.customerPhone || ""}
+            shippingAddress={order.shippingAddress || ""}
+            notes={order.notes || ""}
+            isLocked={isLocked}
+            initialItems={order.items.map((item) => ({
+              id: item.id,
+              productId: item.productId,
+              productName: item.product.name,
+              quantity: item.quantity,
+              unitPrice: Number(item.unitPrice),
+            }))}
+          />
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-gray-500">
+              Fulfillment Status:
+            </span>
+            <OrderStatusSelect
+              orderId={order.id}
+              currentStatus={order.status}
+            />
+          </div>
         </div>
       </div>
 

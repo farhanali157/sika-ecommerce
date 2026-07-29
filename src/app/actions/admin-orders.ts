@@ -20,21 +20,32 @@ export type AdminOrderFilters = {
   dateRange?: string    // 'today' | '7days' | '30days'
 }
 
+export type EditOrderInput = {
+  customerName: string
+  customerEmail: string
+  customerPhone: string
+  shippingAddress: string
+  notes?: string
+  items: {
+    productId: string
+    quantity: number
+    unitPrice: number
+  }[]
+}
+
 export async function getAdminOrders(filters: AdminOrderFilters = {}) {
   try {
     await requireAdmin()
 
     const { status, search, customerType, dateRange } = filters
-
-    // 1. Build dynamic Prisma 'where' clause
     const where: Prisma.OrderWhereInput = {}
 
-    // Status Filter
+    // 1. Status Filter
     if (status && Object.values(OrderStatus).includes(status as OrderStatus)) {
       where.status = status as OrderStatus
     }
 
-    // Customer Type Filter
+    // 2. Customer Type Filter
     if (customerType === "GUEST") {
       where.userId = null
     } else if (customerType === "B2B") {
@@ -43,22 +54,22 @@ export async function getAdminOrders(filters: AdminOrderFilters = {}) {
       where.user = { role: Role.CUSTOMER }
     }
 
-    // Date Range Filter
+    // 3. Date Range Filter (Fixed: Immutable date calculations)
     if (dateRange) {
       const now = new Date()
       if (dateRange === "today") {
-        const startOfDay = new Date(now.setHours(0, 0, 0, 0))
+        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
         where.createdAt = { gte: startOfDay }
       } else if (dateRange === "7days") {
-        const sevenDaysAgo = new Date(now.setDate(now.getDate() - 7))
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
         where.createdAt = { gte: sevenDaysAgo }
       } else if (dateRange === "30days") {
-        const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30))
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
         where.createdAt = { gte: thirtyDaysAgo }
       }
     }
 
-    // Global Search Query (Matches Order ID, Name, Email, or Phone)
+    // 4. Global Search Query (Order ID, Name, Email, or Phone)
     if (search && search.trim() !== "") {
       const q = search.trim()
       where.OR = [
@@ -123,6 +134,66 @@ export async function updateOrderStatus(orderId: string, newStatus: OrderStatus)
     return { success: true, status: updatedOrder.status }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to update order status"
+    return { success: false, error: message }
+  }
+}
+
+export async function updateAdminOrderDetails(orderId: string, input: EditOrderInput) {
+  try {
+    await requireAdmin()
+
+    const existingOrder = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { items: true },
+    })
+
+    if (!existingOrder) {
+      return { success: false, error: "Order not found." }
+    }
+
+    if (existingOrder.status === "DISPATCHED" || existingOrder.status === "DELIVERED" || existingOrder.status === "CANCELLED") {
+      return { success: false, error: `Orders in ${existingOrder.status} state cannot be edited.` }
+    }
+
+    if (!input.items || input.items.length === 0) {
+      return { success: false, error: "An order must contain at least one item." }
+    }
+
+    const itemsSubtotal = input.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
+    const shippingFee = itemsSubtotal > 50000 ? 0 : 1500
+    const newGrandTotal = itemsSubtotal + shippingFee
+
+    await prisma.$transaction(async (tx) => {
+      await tx.orderItem.deleteMany({
+        where: { orderId },
+      })
+
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          customerName: input.customerName,
+          customerEmail: input.customerEmail.toLowerCase().trim(),
+          customerPhone: input.customerPhone,
+          shippingAddress: input.shippingAddress,
+          notes: input.notes,
+          totalAmount: newGrandTotal,
+          items: {
+            create: input.items.map((item) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+            })),
+          },
+        },
+      })
+    })
+
+    revalidatePath("/admin/orders")
+    revalidatePath(`/admin/orders/${orderId}`)
+
+    return { success: true }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to update order details."
     return { success: false, error: message }
   }
 }
