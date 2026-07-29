@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { CheckCircle, ArrowRight } from "lucide-react"
 import { prisma } from "@/lib/prisma"
+import { auth } from "@/auth"
 
 export const dynamic = "force-dynamic"
 
@@ -10,10 +11,15 @@ type Props = {
 
 export default async function OrderSuccessPage({ searchParams }: Props) {
   const { orderId } = await searchParams
+  const session = await auth()
 
+  // IDOR Protection: Restrict lookup to authenticated owner or verify request context
   const order = orderId
-    ? await prisma.order.findUnique({
-        where: { id: orderId },
+    ? await prisma.order.findFirst({
+        where: {
+          id: orderId,
+          ...(session?.user?.id ? { userId: session.user.id } : {}),
+        },
         select: {
           id: true,
           totalAmount: true,
@@ -32,7 +38,7 @@ export default async function OrderSuccessPage({ searchParams }: Props) {
           </p>
 
           <div className="bg-gray-100 p-3 rounded-xl font-mono text-sm font-bold text-gray-800 break-all">
-            {order?.id || orderId || "SIKA-CONFIRMED"}
+            {orderId || "SIKA-CONFIRMED"}
           </div>
 
           {order && (
@@ -40,7 +46,7 @@ export default async function OrderSuccessPage({ searchParams }: Props) {
               <div className="flex justify-between">
                 <span className="text-gray-500">Total Amount:</span>
                 <span className="font-bold text-gray-900">
-                  PKR {order.totalAmount.toLocaleString()}
+                  PKR {Number(order.totalAmount).toLocaleString()}
                 </span>
               </div>
             </div>
