@@ -11,7 +11,6 @@ function createPrismaClient() {
 
   const pool = new pg.Pool({
     connectionString,
-    // In serverless, limit each lambda instance to 1-2 connections max
     max: process.env.NODE_ENV === "production" ? 1 : 5,
     idleTimeoutMillis: 10000,
     connectionTimeoutMillis: 5000,
@@ -21,12 +20,7 @@ function createPrismaClient() {
   return new PrismaClient({ adapter })
 }
 
-// Always reuse global instance across warm serverless lambdas in production
 export const prisma = globalForPrisma.prisma ?? createPrismaClient()
 
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma
-} else {
-  // Cache in production to prevent pool leaks across warm serverless functions
-  globalForPrisma.prisma = prisma
-}
+// Unconditionally assign to globalThis to prevent pool duplication across warm serverless lambdas
+globalForPrisma.prisma = prisma

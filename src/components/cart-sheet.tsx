@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react"
 import Link from "next/link"
-import { ShoppingBag, X, Trash2, ArrowRight } from "lucide-react"
+import { ShoppingBag, X, Trash2, ArrowRight, AlertCircle } from "lucide-react"
 import { getCart, updateCartItemQuantity, removeFromCart } from "@/app/actions/cart"
 
 type CartData = {
@@ -27,6 +27,7 @@ type Props = {
 
 export function CartSheet({ isOpen, onClose }: Props) {
   const [cart, setCart] = useState<CartData>({ items: [], subtotal: 0, totalItems: 0 })
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   useEffect(() => {
@@ -38,10 +39,12 @@ export function CartSheet({ isOpen, onClose }: Props) {
       .then((data) => {
         if (isSubscribed) {
           setCart(data)
+          setErrorMessage(null)
         }
       })
       .catch((err) => {
         console.error("Failed to load cart data:", err)
+        if (isSubscribed) setErrorMessage("Unable to load cart.")
       })
 
     return () => {
@@ -50,16 +53,26 @@ export function CartSheet({ isOpen, onClose }: Props) {
   }, [isOpen])
 
   const handleQuantityChange = (cartItemId: string, newQty: number) => {
+    setErrorMessage(null)
     startTransition(async () => {
-      await updateCartItemQuantity(cartItemId, newQty)
+      const result = await updateCartItemQuantity(cartItemId, newQty)
+      if (!result.success) {
+        setErrorMessage(result.error || "Failed to update quantity.")
+        return
+      }
       const data = await getCart()
       setCart(data)
     })
   }
 
   const handleRemove = (cartItemId: string) => {
+    setErrorMessage(null)
     startTransition(async () => {
-      await removeFromCart(cartItemId)
+      const result = await removeFromCart(cartItemId)
+      if (!result.success) {
+        setErrorMessage(result.error || "Failed to remove item.")
+        return
+      }
       const data = await getCart()
       setCart(data)
     })
@@ -93,6 +106,14 @@ export function CartSheet({ isOpen, onClose }: Props) {
               <X className="h-5 w-5" />
             </button>
           </div>
+
+          {/* Error Banner */}
+          {errorMessage && (
+            <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-xs text-red-700">
+              <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
 
           {/* Cart Body */}
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
@@ -136,7 +157,7 @@ export function CartSheet({ isOpen, onClose }: Props) {
                       <button
                         disabled={isPending}
                         onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
-                        className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
+                        className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 disabled:opacity-50"
                       >
                         -
                       </button>
@@ -144,7 +165,7 @@ export function CartSheet({ isOpen, onClose }: Props) {
                       <button
                         disabled={isPending}
                         onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                        className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
+                        className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 disabled:opacity-50"
                       >
                         +
                       </button>
@@ -153,7 +174,7 @@ export function CartSheet({ isOpen, onClose }: Props) {
                     <button
                       disabled={isPending}
                       onClick={() => handleRemove(item.id)}
-                      className="text-gray-400 hover:text-red-600 transition p-1"
+                      className="text-gray-400 hover:text-red-600 transition p-1 disabled:opacity-50"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
