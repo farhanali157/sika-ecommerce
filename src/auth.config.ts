@@ -1,4 +1,5 @@
 import type { NextAuthConfig } from "next-auth"
+import { NextResponse } from "next/server"
 
 export const authConfig = {
   pages: {
@@ -13,30 +14,18 @@ export const authConfig = {
       // Protect Admin Dashboard
       if (pathname.startsWith("/admin")) {
         if (!isLoggedIn) return false
-        if (userRole !== "ADMIN") return Response.redirect(new URL("/", nextUrl))
+        if (userRole !== "ADMIN") return NextResponse.redirect(new URL("/", nextUrl))
       }
 
       // Protect B2B Portal
       if (pathname.startsWith("/b2b")) {
         if (!isLoggedIn) return false
         if (userRole !== "B2B" && userRole !== "ADMIN") {
-          return Response.redirect(new URL("/", nextUrl))
+          return NextResponse.redirect(new URL("/", nextUrl))
         }
       }
 
       return true
-    },
-    async jwt({ token, user }) {
-    if (user) {
-      token.role = (user.role as "CUSTOMER" | "B2B" | "ADMIN") || "CUSTOMER"
-    }
-    return token
-  },
-  async session({ session, token }) {
-    if (session.user) {
-      session.user.role = (token.role as "CUSTOMER" | "B2B" | "ADMIN") || "CUSTOMER"
-    }
-    return session
     },
   },
   providers: [], // Configured in main auth.ts

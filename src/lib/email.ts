@@ -9,6 +9,20 @@ const getResendClient = () => {
   return new Resend(apiKey)
 }
 
+function escapeHtml(str: string): string {
+  return str.replace(
+    /[&<>"']/g,
+    (c) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      }[c]!)
+  )
+}
+
 export type OrderEmailPayload = {
   orderId: string
   customerName: string
@@ -43,11 +57,13 @@ export async function sendOrderConfirmationEmail(payload: OrderEmailPayload) {
       return { success: false, reason: "Invalid recipient email" }
     }
 
+    const safeCustomerName = escapeHtml(payload.customerName)
+
     const itemsListHtml = payload.items
       .map(
         (item) =>
           `<tr>
-            <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.name}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">${escapeHtml(item.name)}</td>
             <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
             <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">PKR ${Number(item.unitPrice).toLocaleString()}</td>
           </tr>`
@@ -59,8 +75,8 @@ export async function sendOrderConfirmationEmail(payload: OrderEmailPayload) {
         <h2 style="color: #d97706; border-bottom: 2px solid #f3f4f6; padding-bottom: 10px;">
           SIKA PAKISTAN — Order Confirmation
         </h2>
-        <p>Dear <strong>${payload.customerName}</strong>,</p>
-        <p>Thank you for your order! We have received your order <strong>#${payload.orderId}</strong> and it is currently being processed.</p>
+        <p>Dear <strong>${safeCustomerName}</strong>,</p>
+        <p>Thank you for your order! We have received your order <strong>#${escapeHtml(payload.orderId)}</strong> and it is currently being processed.</p>
         
         <table style="width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 15px;">
           <thead>
@@ -87,7 +103,8 @@ export async function sendOrderConfirmationEmail(payload: OrderEmailPayload) {
     `
 
     const { data, error } = await resend.emails.send({
-      from: "Sika Orders <orders@sika.com.pk>",
+      // Using Resend's free testing sender domain
+      from: "Sika Orders <onboarding@resend.dev>",
       to: [payload.customerEmail],
       subject: `Order Confirmation #${payload.orderId.slice(-8)} — Sika Pakistan`,
       html: htmlContent,

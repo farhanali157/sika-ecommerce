@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { getOrCreateCart } from "@/app/actions/cart"
 import { calculateCartSubtotal } from "@/lib/cart-engine"
 import { sendOrderConfirmationEmail } from "@/lib/email"
+import { after } from "next/server"
 
 type CreateOrderInput = {
   customerName: string
@@ -120,21 +121,23 @@ export async function createOrder(input: CreateOrderInput) {
       return newOrder
     })
 
-    // Non-blocking Email Dispatch: Executed outside transaction boundary
-    // Guarantees mail transport drops or bad addresses never throw/rollback an already created order
-    sendOrderConfirmationEmail({
-      orderId: result.id,
-      customerName: result.customerName ?? input.customerName,
-      customerEmail: result.customerEmail ?? input.customerEmail,
-      totalAmount: Number(result.totalAmount),
-      status: result.status,
-      items: result.items.map((item) => ({
-        name: item.product.name,
-        quantity: item.quantity,
-        unitPrice: Number(item.unitPrice),
-      })),
-    }).catch((err) => {
-      console.error("[createOrder] Non-blocking background email dispatch error:", err)
+    // Scheduled via Next.js after() to guarantee completion in Vercel serverless runtimes
+    // without delaying the client's HTTP response boundary
+    after(() => {
+      sendOrderConfirmationEmail({
+        orderId: result.id,
+        customerName: result.customerName ?? input.customerName,
+        customerEmail: result.customerEmail ?? input.customerEmail,
+        totalAmount: Number(result.totalAmount),
+        status: result.status,
+        items: result.items.map((item) => ({
+          name: item.product.name,
+          quantity: item.quantity,
+          unitPrice: Number(item.unitPrice),
+        })),
+      }).catch((err) => {
+        console.error("[createOrder] Non-blocking background email dispatch error:", err)
+      })
     })
 
     return { success: true, orderId: result.id }
