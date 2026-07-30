@@ -1,3 +1,12 @@
+// src/auth.config.ts
+
+/**
+ * NOTE: This config runs in Edge Middleware (proxy.ts).
+ * Do NOT remove callbacks here during cleanups — Edge middleware executes 
+ * independently from auth.ts and requires its own JWT/Session hydration 
+ * to evaluate user roles correctly on edge routes.
+ */
+
 import type { NextAuthConfig } from "next-auth"
 import { NextResponse } from "next/server"
 
