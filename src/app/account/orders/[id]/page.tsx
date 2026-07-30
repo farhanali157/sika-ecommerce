@@ -23,6 +23,22 @@ export default async function CustomerOrderDetailPage({ params }: Props) {
     notFound()
   }
 
+  // Cast order as a generic record to safely read new migration fields (subtotal/shippingFee)
+  const orderRecord = order as Record<string, unknown>
+
+  const orderSubtotal =
+    orderRecord.subtotal !== undefined && orderRecord.subtotal !== null
+      ? Number(orderRecord.subtotal)
+      : order.items.reduce(
+          (sum, item) => sum + Number(item.unitPrice) * item.quantity,
+          0
+        )
+
+  const shippingFee =
+    orderRecord.shippingFee !== undefined && orderRecord.shippingFee !== null
+      ? Number(orderRecord.shippingFee)
+      : Number(order.totalAmount) - orderSubtotal
+
   return (
     <div className="max-w-4xl mx-auto p-6 md:p-8 space-y-6">
       {/* Back Button */}
@@ -66,7 +82,7 @@ export default async function CustomerOrderDetailPage({ params }: Props) {
 
             <div className="divide-y divide-gray-100">
               {order.items.map((item) => {
-                const subtotal = Number(item.unitPrice) * item.quantity
+                const itemSubtotal = Number(item.unitPrice) * item.quantity
                 return (
                   <div
                     key={item.id}
@@ -84,7 +100,7 @@ export default async function CustomerOrderDetailPage({ params }: Props) {
                       </p>
                     </div>
                     <span className="font-bold text-gray-900">
-                      PKR {subtotal.toLocaleString()}
+                      PKR {itemSubtotal.toLocaleString()}
                     </span>
                   </div>
                 )
@@ -94,9 +110,15 @@ export default async function CustomerOrderDetailPage({ params }: Props) {
             {/* Totals Ledger */}
             <div className="border-t border-gray-100 pt-4 space-y-2 text-xs">
               <div className="flex justify-between text-gray-500">
+                <span>Subtotal:</span>
+                <span>PKR {orderSubtotal.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-gray-500">
                 <span>Shipping Fee:</span>
                 <span>
-                  {Number(order.totalAmount) > 50000 ? "FREE (PKR 0)" : "PKR 1,500"}
+                  {shippingFee === 0
+                    ? "FREE (PKR 0)"
+                    : `PKR ${shippingFee.toLocaleString()}`}
                 </span>
               </div>
               <div className="flex justify-between text-sm font-black text-gray-900 border-t border-gray-100 pt-2">

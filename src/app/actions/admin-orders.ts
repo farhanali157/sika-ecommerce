@@ -246,6 +246,8 @@ export async function updateAdminOrderDetails(orderId: string, input: EditOrderI
           customerPhone: input.customerPhone,
           shippingAddress: input.shippingAddress,
           notes: input.notes,
+          subtotal: itemsSubtotal,
+          shippingFee: shippingFee,
           totalAmount: newGrandTotal,
           items: {
             create: recalculatedItems,

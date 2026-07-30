@@ -87,36 +87,29 @@ export async function cancelCustomerOrder(orderId: string) {
     const userId = session.user.id
 
     return await prisma.$transaction(async (tx) => {
-      // Fetch order INSIDE transaction to verify ownership and current status
-      const existingOrder = await tx.order.findFirst({
+      // Compare-and-swap: Atomic condition enforced at database write time
+      const updateResult = await tx.order.updateMany({
         where: {
           id: orderId,
           userId, // Ownership check
+          status: { in: [OrderStatus.PENDING, OrderStatus.PROCESSING] }, // Write-time state guard
         },
-        select: { status: true },
+        data: {
+          status: OrderStatus.CANCELLED,
+        },
       })
 
-      if (!existingOrder) {
-        return { success: false, error: "Order not found or access denied." }
-      }
-
-      // Customer cancellation only permitted for PENDING or PROCESSING states
-      if (existingOrder.status !== "PENDING" && existingOrder.status !== "PROCESSING") {
+      if (updateResult.count === 0) {
         return {
           success: false,
-          error: `Orders in ${existingOrder.status} status cannot be cancelled. Please contact support.`,
+          error: "This order cannot be cancelled — it may have already shipped or does not exist.",
         }
       }
-
-      const updatedOrder = await tx.order.update({
-        where: { id: orderId },
-        data: { status: OrderStatus.CANCELLED },
-      })
 
       revalidatePath("/account/orders")
       revalidatePath(`/account/orders/${orderId}`)
 
-      return { success: true, status: updatedOrder.status }
+      return { success: true }
     })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to cancel order."
