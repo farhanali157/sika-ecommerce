@@ -5,17 +5,19 @@ import Link from "next/link"
 import { ShoppingBag, X, Trash2, ArrowRight, AlertCircle } from "lucide-react"
 import { getCart, updateCartItemQuantity, removeFromCart } from "@/app/actions/cart"
 
+type CartItem = {
+  id: string
+  productId: string
+  productName: string
+  productSlug: string
+  quantity: number
+  unitPrice: number
+  totalPrice: number
+  appliedTier: number | null
+}
+
 type CartData = {
-  items: {
-    id: string
-    productId: string
-    productName: string
-    productSlug: string
-    quantity: number
-    unitPrice: number
-    totalPrice: number
-    appliedTier: number | null
-  }[]
+  items: CartItem[]
   subtotal: number
   totalItems: number
 }
@@ -23,6 +25,105 @@ type CartData = {
 type Props = {
   isOpen: boolean
   onClose: () => void
+}
+
+function CartSheetItem({
+  item,
+  isPending,
+  onQuantityChange,
+  onRemove,
+  onClose,
+}: {
+  item: CartItem
+  isPending: boolean
+  onQuantityChange: (cartItemId: string, newQty: number) => void
+  onRemove: (cartItemId: string) => void
+  onClose: () => void
+}) {
+  const [prevServerQty, setPrevServerQty] = useState(item.quantity)
+  const [localQty, setLocalQty] = useState<string>(item.quantity.toString())
+
+  if (prevServerQty !== item.quantity) {
+    setPrevServerQty(item.quantity)
+    setLocalQty(item.quantity.toString())
+  }
+
+  const commitQuantity = (val: string) => {
+    let parsed = parseInt(val, 10)
+    if (isNaN(parsed) || parsed < 1) {
+      parsed = 1
+    }
+    setLocalQty(parsed.toString())
+    if (parsed !== item.quantity) {
+      onQuantityChange(item.id, parsed)
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-between border border-gray-100 rounded-xl p-4 bg-gray-50/50">
+      <div className="space-y-1">
+        <Link
+          href={`/product/${item.productSlug}`}
+          onClick={onClose}
+          className="text-sm font-bold text-gray-900 hover:text-amber-600 transition line-clamp-1"
+        >
+          {item.productName}
+        </Link>
+        <p className="text-xs text-gray-500">
+          PKR {item.unitPrice.toLocaleString()} / unit
+        </p>
+        {item.appliedTier && (
+          <span className="inline-block text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+            B2B Tier ({item.appliedTier}+ Qty)
+          </span>
+        )}
+      </div>
+
+      <div className="flex items-center gap-3">
+        <div className="flex items-center border border-gray-200 rounded-lg bg-white overflow-hidden">
+          <button
+            type="button"
+            disabled={isPending || item.quantity <= 1}
+            onClick={() => commitQuantity((item.quantity - 1).toString())}
+            className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 disabled:opacity-50 font-bold"
+          >
+            -
+          </button>
+          <input
+            type="number"
+            min="1"
+            disabled={isPending}
+            value={localQty}
+            onChange={(e) => setLocalQty(e.target.value)}
+            onBlur={(e) => commitQuantity(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.currentTarget.blur()
+              }
+            }}
+            className="w-12 text-center text-xs font-mono font-bold text-gray-900 bg-transparent focus:outline-none focus:bg-amber-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none border-x border-gray-200 py-1"
+          />
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => commitQuantity((item.quantity + 1).toString())}
+            className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 disabled:opacity-50 font-bold"
+          >
+            +
+          </button>
+        </div>
+
+        <button
+          type="button"
+          disabled={isPending}
+          onClick={() => onRemove(item.id)}
+          className="text-gray-400 hover:text-red-600 transition p-1 disabled:opacity-50"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  )
 }
 
 export function CartSheet({ isOpen, onClose }: Props) {
@@ -130,56 +231,14 @@ export function CartSheet({ isOpen, onClose }: Props) {
               </div>
             ) : (
               cart.items.map((item) => (
-                <div
+                <CartSheetItem
                   key={item.id}
-                  className="flex items-center justify-between border border-gray-100 rounded-xl p-4 bg-gray-50/50"
-                >
-                  <div className="space-y-1">
-                    <Link
-                      href={`/product/${item.productSlug}`}
-                      onClick={onClose}
-                      className="text-sm font-bold text-gray-900 hover:text-amber-600 transition line-clamp-1"
-                    >
-                      {item.productName}
-                    </Link>
-                    <p className="text-xs text-gray-500">
-                      PKR {item.unitPrice.toLocaleString()} / unit
-                    </p>
-                    {item.appliedTier && (
-                      <span className="inline-block text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                        B2B Tier ({item.appliedTier}+ Qty)
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center border border-gray-200 rounded-lg bg-white">
-                      <button
-                        disabled={isPending}
-                        onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
-                        className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 disabled:opacity-50"
-                      >
-                        -
-                      </button>
-                      <span className="px-2 text-xs font-mono font-bold">{item.quantity}</span>
-                      <button
-                        disabled={isPending}
-                        onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                        className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 disabled:opacity-50"
-                      >
-                        +
-                      </button>
-                    </div>
-
-                    <button
-                      disabled={isPending}
-                      onClick={() => handleRemove(item.id)}
-                      className="text-gray-400 hover:text-red-600 transition p-1 disabled:opacity-50"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
+                  item={item}
+                  isPending={isPending}
+                  onQuantityChange={handleQuantityChange}
+                  onRemove={handleRemove}
+                  onClose={onClose}
+                />
               ))
             )}
           </div>

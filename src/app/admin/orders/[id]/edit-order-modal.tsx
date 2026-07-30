@@ -23,6 +23,88 @@ type Props = {
   isLocked: boolean
 }
 
+function ModalOrderItem({
+  item,
+  onQuantityChange,
+  onRemoveItem,
+}: {
+  item: OrderItemData
+  onQuantityChange: (id: string, newQty: number) => void
+  onRemoveItem: (id: string) => void
+}) {
+  const [prevQty, setPrevQty] = useState(item.quantity)
+  const [localQty, setLocalQty] = useState<string>(item.quantity.toString())
+
+  if (prevQty !== item.quantity) {
+    setPrevQty(item.quantity)
+    setLocalQty(item.quantity.toString())
+  }
+
+  const commitQuantity = (val: string) => {
+    let parsed = parseInt(val, 10)
+    if (isNaN(parsed) || parsed < 1) {
+      parsed = 1
+    }
+    setLocalQty(parsed.toString())
+    onQuantityChange(item.id, parsed)
+  }
+
+  return (
+    <div className="flex items-center justify-between bg-gray-50 p-3 rounded-xl border border-gray-100 text-xs">
+      <div className="flex-1 pr-4">
+        <p className="font-bold text-gray-900">{item.productName}</p>
+        <p className="text-[10px] text-gray-400">
+          Unit Price: PKR {item.unitPrice.toLocaleString()}
+        </p>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <div className="flex items-center border border-gray-200 rounded-lg bg-white overflow-hidden">
+          <button
+            type="button"
+            onClick={() => commitQuantity((item.quantity - 1).toString())}
+            className="px-2 py-1 text-gray-500 hover:bg-gray-100 font-bold"
+          >
+            -
+          </button>
+          <input
+            type="number"
+            min="1"
+            value={localQty}
+            onChange={(e) => setLocalQty(e.target.value)}
+            onBlur={(e) => commitQuantity(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.currentTarget.blur()
+              }
+            }}
+            className="w-12 text-center text-xs font-mono font-bold text-gray-900 bg-transparent focus:outline-none focus:bg-amber-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none border-x border-gray-200 py-0.5"
+          />
+          <button
+            type="button"
+            onClick={() => commitQuantity((item.quantity + 1).toString())}
+            className="px-2 py-1 text-gray-500 hover:bg-gray-100 font-bold"
+          >
+            +
+          </button>
+        </div>
+
+        <span className="font-bold text-gray-900 min-w-20 text-right">
+          PKR {(item.quantity * item.unitPrice).toLocaleString()}
+        </span>
+
+        <button
+          type="button"
+          onClick={() => onRemoveItem(item.id)}
+          className="text-rose-500 hover:text-rose-700 p-1"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export function EditOrderModal({
   orderId,
   customerName: initName,
@@ -79,7 +161,6 @@ export function EditOrderModal({
         items: items.map((i) => ({
           productId: i.productId,
           quantity: i.quantity,
-          unitPrice: i.unitPrice,
         })),
       })
 
@@ -187,49 +268,12 @@ export function EditOrderModal({
                 </h4>
                 <div className="space-y-2">
                   {items.map((item) => (
-                    <div
+                    <ModalOrderItem
                       key={item.id}
-                      className="flex items-center justify-between bg-gray-50 p-3 rounded-xl border border-gray-100 text-xs"
-                    >
-                      <div className="flex-1 pr-4">
-                        <p className="font-bold text-gray-900">{item.productName}</p>
-                        <p className="text-[10px] text-gray-400">
-                          Unit Price: PKR {item.unitPrice.toLocaleString()}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center border border-gray-200 rounded-lg bg-white overflow-hidden">
-                          <button
-                            type="button"
-                            onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
-                            className="px-2 py-1 text-gray-500 hover:bg-gray-100 font-bold"
-                          >
-                            -
-                          </button>
-                          <span className="px-3 font-bold text-gray-900">{item.quantity}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                            className="px-2 py-1 text-gray-500 hover:bg-gray-100 font-bold"
-                          >
-                            +
-                          </button>
-                        </div>
-
-                        <span className="font-bold text-gray-900 min-w-20 text-right">
-                          PKR {(item.quantity * item.unitPrice).toLocaleString()}
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveItem(item.id)}
-                          className="text-rose-500 hover:text-rose-700 p-1"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
+                      item={item}
+                      onQuantityChange={handleQuantityChange}
+                      onRemoveItem={handleRemoveItem}
+                    />
                   ))}
                 </div>
               </div>
