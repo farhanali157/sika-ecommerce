@@ -1,33 +1,35 @@
-import Link from "next/link"
-import { ArrowRight, ShieldCheck, Truck, Wrench, Package } from "lucide-react"
-import { Prisma } from "@prisma/client"
-import { prisma } from "@/lib/prisma"
+import Link from "next/link";
+import Image from "next/image";
+import { ArrowRight, ShieldCheck, Truck, Wrench, Package } from "lucide-react";
+import { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
 type CategorySummary = {
-  id: string
-  name: string
-  slug: string
-}
+  id: string;
+  name: string;
+  slug: string;
+};
 
 type TieredPrice = {
-  id: string
-  minQty: number
-  price: number | Prisma.Decimal
-}
+  id: string;
+  minQty: number;
+  price: number | Prisma.Decimal;
+};
 
 type FeaturedProduct = {
-  id: string
-  name: string
-  slug: string
-  packSize: string
-  description: string
-  tieredPrices: TieredPrice[]
-}
+  id: string;
+  name: string;
+  slug: string;
+  packSize: string;
+  description: string;
+  images: string[];
+  tieredPrices: TieredPrice[];
+};
 
 export default async function HomePage() {
-  let categories: CategorySummary[] = []
-  let featuredProducts: FeaturedProduct[] = []
-  let isDbOffline = false
+  let categories: CategorySummary[] = [];
+  let featuredProducts: FeaturedProduct[] = [];
+  let isDbOffline = false;
 
   try {
     categories = await prisma.category.findMany({
@@ -37,7 +39,7 @@ export default async function HomePage() {
         slug: true,
       },
       take: 4,
-    })
+    });
 
     featuredProducts = await prisma.product.findMany({
       take: 6,
@@ -47,6 +49,7 @@ export default async function HomePage() {
         slug: true,
         packSize: true,
         description: true,
+        images: true,
         tieredPrices: {
           select: {
             id: true,
@@ -56,38 +59,49 @@ export default async function HomePage() {
           orderBy: { minQty: "asc" },
         },
       },
-    })
+    });
   } catch (error) {
-    console.error("[Homepage] Database fetch degraded:", error)
-    isDbOffline = true
+    console.error("[Homepage] Database fetch degraded:", error);
+    isDbOffline = true;
   }
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
-      {/* 1. HERO BANNER */}
-      <section className="relative bg-neutral-900 text-white py-16 px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-          <div className="space-y-6">
+      {/* 1. HERO BANNER WITH BACKGROUND IMAGE */}
+      <section className="relative overflow-hidden bg-neutral-900 text-white py-16 sm:py-24 px-4 sm:px-6 lg:px-8">
+        {/* Unsplash Construction Background Image Overlay */}
+        <div className="absolute inset-0 z-0">
+          <Image
+            src="https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1920&q=80"
+            alt="Sika Construction Background"
+            fill
+            priority
+            className="object-cover object-center opacity-35"
+          />
+          <div className="absolute inset-0 bg-linear-to-r from-neutral-950 via-neutral-900/80 to-transparent" />
+        </div>
+        {/* Hero Text Content */}
+        <div className="relative z-10 mx-auto max-w-7xl">
+          <div className="max-w-2xl space-y-6">
             <span className="inline-block bg-amber-500 text-black text-xs font-bold uppercase tracking-wider px-3 py-1 rounded">
               Official Sika Online Store
             </span>
-            <h1 className="text-4xl sm:text-5xl font-black tracking-tight leading-tight">
-              BUILDING TRUST WITH <span className="text-amber-500">SIKA SOLUTIONS</span>
+            <h1 className="text-4xl sm:text-6xl font-black tracking-tight leading-tight">
+              BUILDING TRUST WITH <br />
+              <span className="text-amber-500">SIKA SOLUTIONS</span>
             </h1>
-            <p className="text-gray-300 text-base sm:text-lg">
-              Explore high-performance sealants, adhesives, waterproofing, and concrete repair systems directly from the manufacturer.
+            <p className="text-gray-300 text-base sm:text-lg leading-relaxed">
+              Explore high-performance sealants, adhesives, waterproofing, and
+              concrete repair systems directly from the manufacturer.
             </p>
-            <div className="flex flex-wrap gap-4 pt-2">
+            <div className="pt-2">
               <Link
                 href="/category/waterproofing"
-                className="bg-amber-500 hover:bg-amber-600 text-black font-bold px-6 py-3 rounded-md transition flex items-center gap-2"
+                className="bg-amber-500 hover:bg-amber-600 text-black font-extrabold px-6 py-3.5 rounded-lg transition shadow-lg inline-flex items-center gap-2"
               >
                 Shop Products <ArrowRight className="h-5 w-5" />
               </Link>
             </div>
-          </div>
-          <div className="relative h-64 sm:h-80 w-full rounded-2xl bg-neutral-800 border border-neutral-700 flex items-center justify-center text-neutral-500 font-bold">
-            [ Sika Hero Promotional Banner ]
           </div>
         </div>
       </section>
@@ -102,19 +116,22 @@ export default async function HomePage() {
             <Truck className="h-5 w-5" /> Nationwide Delivery & Distribution
           </div>
           <div className="flex items-center justify-center gap-2">
-            <Wrench className="h-5 w-5" /> Technical Datasheets (TDS/SDS) Included
+            <Wrench className="h-5 w-5" /> Technical Datasheets (TDS/SDS)
+            Included
           </div>
         </div>
       </section>
 
-      {/* 3. PRODUCTS BY APPLICATION AREA */}
+      {/* 3. PRODUCTS BY CATEGORY */}
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="flex justify-between items-end mb-6">
           <div>
             <h2 className="text-2xl font-bold tracking-tight text-gray-900 uppercase">
               Products By Category
             </h2>
-            <p className="text-sm text-gray-500 mt-1">Select your application area</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Select your application area
+            </p>
           </div>
         </div>
 
@@ -161,9 +178,13 @@ export default async function HomePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
             {featuredProducts.map((product) => {
               const rawRetailPrice =
-                product.tieredPrices.find((p) => p.minQty === 1)?.price ?? 0
+                product.tieredPrices.find((p) => p.minQty === 1)?.price ?? 0;
               const retailPrice =
-                typeof rawRetailPrice === "number" ? rawRetailPrice : Number(rawRetailPrice)
+                typeof rawRetailPrice === "number"
+                  ? rawRetailPrice
+                  : Number(rawRetailPrice);
+
+              const mainImage = product.images?.[0] || null;
 
               return (
                 <div
@@ -171,8 +192,21 @@ export default async function HomePage() {
                   className="group rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-lg transition flex flex-col justify-between"
                 >
                   <div>
-                    <div className="aspect-square w-full rounded-lg bg-gray-100 flex items-center justify-center font-bold text-gray-400 mb-4 border border-gray-100">
-                      [ {product.name} ]
+                    {/* Real Product Image Rendering */}
+                    <div className="relative aspect-square w-full rounded-lg bg-gray-100 mb-4 overflow-hidden border border-gray-100 flex items-center justify-center">
+                      {mainImage ? (
+                        <Image
+                          src={mainImage}
+                          alt={product.name}
+                          fill
+                          sizes="(max-width: 768px) 100vw, 33vw"
+                          className="object-cover object-center group-hover:scale-105 transition duration-300"
+                        />
+                      ) : (
+                        <span className="font-bold text-gray-400 text-sm">
+                          [ {product.name} ]
+                        </span>
+                      )}
                     </div>
                     <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded">
                       {product.packSize}
@@ -187,7 +221,9 @@ export default async function HomePage() {
 
                   <div className="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between">
                     <div>
-                      <span className="text-xs text-gray-400 block">Retail Price</span>
+                      <span className="text-xs text-gray-400 block">
+                        Retail Price
+                      </span>
                       <span className="text-lg font-black text-gray-900">
                         Rs. {retailPrice.toLocaleString()}
                       </span>
@@ -200,7 +236,7 @@ export default async function HomePage() {
                     </Link>
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         ) : (
@@ -212,5 +248,5 @@ export default async function HomePage() {
         )}
       </section>
     </div>
-  )
+  );
 }

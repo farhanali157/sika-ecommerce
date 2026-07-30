@@ -1,22 +1,22 @@
-import "dotenv/config"
-import { PrismaClient, Role, OrderStatus } from "@prisma/client"
-import { PrismaPg } from "@prisma/adapter-pg"
-import pg from "pg"
-import bcrypt from "bcryptjs"
+import "dotenv/config";
+import { PrismaClient, Role, OrderStatus } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import pg from "pg";
+import bcrypt from "bcryptjs";
 
-const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL
+const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
 if (!connectionString) {
-  throw new Error("DATABASE_URL or DIRECT_URL must be set in process.env")
+  throw new Error("DATABASE_URL or DIRECT_URL must be set in process.env");
 }
 
-const pool = new pg.Pool({ connectionString })
-const adapter = new PrismaPg(pool)
-const prisma = new PrismaClient({ adapter })
+const pool = new pg.Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  console.log("Seeding database...")
+  console.log("Seeding database...");
 
-  const hashedPassword = await bcrypt.hash("Admin@123456", 10)
+  const hashedPassword = await bcrypt.hash("Admin@123456", 10);
 
   // 1. Seed Admin User
   await prisma.user.upsert({
@@ -28,7 +28,7 @@ async function main() {
       role: Role.ADMIN,
       passwordHash: hashedPassword,
     },
-  })
+  });
 
   // 2. Seed B2B User
   const b2bUser = await prisma.user.upsert({
@@ -42,7 +42,7 @@ async function main() {
       ntnNumber: "NTN-9982341-0",
       passwordHash: hashedPassword,
     },
-  })
+  });
 
   // 3. Seed Retail Customer User
   const customerUser = await prisma.user.upsert({
@@ -54,7 +54,7 @@ async function main() {
       role: Role.CUSTOMER,
       passwordHash: hashedPassword,
     },
-  })
+  });
 
   // 4. Seed Categories
   const waterproofing = await prisma.category.upsert({
@@ -63,9 +63,10 @@ async function main() {
     create: {
       name: "Waterproofing",
       slug: "waterproofing",
-      description: "Cementitious and liquid applied waterproofing membranes for basements, roofs, and wet areas.",
+      description:
+        "Cementitious and liquid applied waterproofing membranes for basements, roofs, and wet areas.",
     },
-  })
+  });
 
   const concreteRepair = await prisma.category.upsert({
     where: { slug: "concrete-repair" },
@@ -73,9 +74,10 @@ async function main() {
     create: {
       name: "Concrete Repair & Protection",
       slug: "concrete-repair",
-      description: "Structural repair mortars, pore sealers, and protective coatings for reinforced concrete structures.",
+      description:
+        "Structural repair mortars, pore sealers, and protective coatings for reinforced concrete structures.",
     },
-  })
+  });
 
   const tiling = await prisma.category.upsert({
     where: { slug: "tiling" },
@@ -83,9 +85,10 @@ async function main() {
     create: {
       name: "Tile Adhesives & Grouts",
       slug: "tiling",
-      description: "High performance tile adhesives, joint fillers, and epoxy grouts for heavy duty installations.",
+      description:
+        "High performance tile adhesives, joint fillers, and epoxy grouts for heavy duty installations.",
     },
-  })
+  });
 
   // 5. Seed Application Areas
   const roofsTerraces = await prisma.applicationArea.upsert({
@@ -94,9 +97,10 @@ async function main() {
     create: {
       name: "Roofs & Terraces",
       slug: "roofs-terraces",
-      description: "Exposed and concealed waterproofing membranes for flat roofs, balconies, and parapets.",
+      description:
+        "Exposed and concealed waterproofing membranes for flat roofs, balconies, and parapets.",
     },
-  })
+  });
 
   const basementsFoundations = await prisma.applicationArea.upsert({
     where: { slug: "basements-foundations" },
@@ -104,9 +108,10 @@ async function main() {
     create: {
       name: "Basements & Foundations",
       slug: "basements-foundations",
-      description: "Heavy duty waterproofing systems for below-grade structures and retaining walls.",
+      description:
+        "Heavy duty waterproofing systems for below-grade structures and retaining walls.",
     },
-  })
+  });
 
   const wetAreas = await prisma.applicationArea.upsert({
     where: { slug: "wet-areas-bathrooms" },
@@ -114,25 +119,26 @@ async function main() {
     create: {
       name: "Wet Areas & Bathrooms",
       slug: "wet-areas-bathrooms",
-      description: "Flexible under-tile waterproofing membranes and sealants for wet rooms.",
+      description:
+        "Flexible under-tile waterproofing membranes and sealants for wet rooms.",
     },
-  })
+  });
 
   // Sample High-Res Images for Sika Product Displays
   const sikatopImages = [
     "https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=800&q=80",
     "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=800&q=80",
-  ]
+  ];
 
   const sikagroutImages = [
-    "https://images.unsplash.com/photo-1541888946425-d0fbb186a5b3?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=800&q=80",
-  ]
+    "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=800&q=80",
+  ];
 
   const sikaceramImages = [
     "https://images.unsplash.com/photo-1615873968403-89e068629265?auto=format&fit=crop&w=800&q=80",
     "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80",
-  ]
+  ];
 
   // 6. Seed Products
   const sikatopProduct = await prisma.product.upsert({
@@ -140,18 +146,21 @@ async function main() {
     update: {
       images: sikatopImages,
       tdsUrl: "https://pk.sika.com/content/dam/dms/pk01/m/sikatop_seal-107.pdf",
-      sdsUrl: "https://pk.sika.com/content/dam/dms/pk01/s/sikatop_seal-107_sds.pdf",
+      sdsUrl:
+        "https://pk.sika.com/content/dam/dms/pk01/s/sikatop_seal-107_sds.pdf",
     },
     create: {
       name: "SikaTop Seal-107",
       slug: "sikatop-seal-107",
       sku: "SKU-STS-107",
-      description: "Two-part polymer modified cementitious waterproof slurry mortar.",
+      description:
+        "Two-part polymer modified cementitious waterproof slurry mortar.",
       packSize: "25 kg set",
       categoryId: waterproofing.id,
       images: sikatopImages,
       tdsUrl: "https://pk.sika.com/content/dam/dms/pk01/m/sikatop_seal-107.pdf",
-      sdsUrl: "https://pk.sika.com/content/dam/dms/pk01/s/sikatop_seal-107_sds.pdf",
+      sdsUrl:
+        "https://pk.sika.com/content/dam/dms/pk01/s/sikatop_seal-107_sds.pdf",
       applicationAreas: {
         connect: [
           { id: basementsFoundations.id },
@@ -167,7 +176,7 @@ async function main() {
         ],
       },
     },
-  })
+  });
 
   const sikagroutProduct = await prisma.product.upsert({
     where: { slug: "sikagrout-214-pk" },
@@ -179,15 +188,14 @@ async function main() {
       name: "SikaGrout-214 PK",
       slug: "sikagrout-214-pk",
       sku: "SKU-SGR-214",
-      description: "1-component shrinkage compensated cementitious precision grout.",
+      description:
+        "1-component shrinkage compensated cementitious precision grout.",
       packSize: "20 kg bag",
       categoryId: concreteRepair.id,
       images: sikagroutImages,
       tdsUrl: "https://pk.sika.com/content/dam/dms/pk01/g/sikagrout-214_pk.pdf",
       applicationAreas: {
-        connect: [
-          { id: basementsFoundations.id },
-        ],
+        connect: [{ id: basementsFoundations.id }],
       },
       tieredPrices: {
         create: [
@@ -197,7 +205,7 @@ async function main() {
         ],
       },
     },
-  })
+  });
 
   await prisma.product.upsert({
     where: { slug: "sika-ceram-102-pk" },
@@ -213,9 +221,7 @@ async function main() {
       categoryId: tiling.id,
       images: sikaceramImages,
       applicationAreas: {
-        connect: [
-          { id: wetAreas.id },
-        ],
+        connect: [{ id: wetAreas.id }],
       },
       tieredPrices: {
         create: [
@@ -225,7 +231,7 @@ async function main() {
         ],
       },
     },
-  })
+  });
 
   // 7. Seed Dummy Orders across all OrderStatus lifecycle states
   const dummyOrders = [
@@ -289,7 +295,7 @@ async function main() {
       quantity: 1,
       unitPrice: 4200.0,
     },
-  ]
+  ];
 
   for (const orderData of dummyOrders) {
     await prisma.order.create({
@@ -311,18 +317,18 @@ async function main() {
           ],
         },
       },
-    })
+    });
   }
 
-  console.log("Seeding completed successfully!")
+  console.log("Seeding completed successfully!");
 }
 
 main()
   .catch((e) => {
-    console.error("Seeding failed:", e)
-    process.exit(1)
+    console.error("Seeding failed:", e);
+    process.exit(1);
   })
   .finally(async () => {
-    await prisma.$disconnect()
-    await pool.end()
-  })
+    await prisma.$disconnect();
+    await pool.end();
+  });
