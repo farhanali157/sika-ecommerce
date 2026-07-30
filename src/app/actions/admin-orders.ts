@@ -4,6 +4,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { OrderStatus, Role, Prisma } from "@prisma/client"
 import { revalidatePath } from "next/cache"
+import { calculateItemPrice } from "@/lib/cart-engine"
 
 export async function requireAdmin() {
   const session = await auth()
@@ -29,8 +30,18 @@ export type EditOrderInput = {
   items: {
     productId: string
     quantity: number
-    unitPrice: number
   }[]
+}
+
+/**
+ * Strict OrderStatus transition rules to prevent invalid status changes
+ */
+const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  PENDING: ["PROCESSING", "CANCELLED"],
+  PROCESSING: ["DISPATCHED", "CANCELLED"],
+  DISPATCHED: ["DELIVERED", "CANCELLED"],
+  DELIVERED: [], // Terminal state
+  CANCELLED: [], // Terminal state
 }
 
 export async function getAdminOrders(filters: AdminOrderFilters = {}) {
@@ -54,7 +65,7 @@ export async function getAdminOrders(filters: AdminOrderFilters = {}) {
       where.user = { role: Role.CUSTOMER }
     }
 
-    // 3. Date Range Filter (Fixed: Immutable date calculations)
+    // 3. Date Range Filter
     if (dateRange) {
       const now = new Date()
       if (dateRange === "today") {
@@ -69,7 +80,7 @@ export async function getAdminOrders(filters: AdminOrderFilters = {}) {
       }
     }
 
-    // 4. Global Search Query (Order ID, Name, Email, or Phone)
+    // 4. Global Search Query
     if (search && search.trim() !== "") {
       const q = search.trim()
       where.OR = [
@@ -124,9 +135,29 @@ export async function updateOrderStatus(orderId: string, newStatus: OrderStatus)
       return { success: false, error: "Invalid order status." }
     }
 
-    const updatedOrder = await prisma.order.update({
-      where: { id: orderId },
-      data: { status: newStatus },
+    const updatedOrder = await prisma.$transaction(async (tx) => {
+      const currentOrder = await tx.order.findUnique({
+        where: { id: orderId },
+        select: { status: true },
+      })
+
+      if (!currentOrder) {
+        throw new Error("Order not found.")
+      }
+
+      if (currentOrder.status === newStatus) {
+        return currentOrder
+      }
+
+      const allowedNextStates = ALLOWED_TRANSITIONS[currentOrder.status]
+      if (!allowedNextStates.includes(newStatus)) {
+        throw new Error(`Cannot transition order from ${currentOrder.status} to ${newStatus}.`)
+      }
+
+      return await tx.order.update({
+        where: { id: orderId },
+        data: { status: newStatus },
+      })
     })
 
     revalidatePath("/admin/orders")
@@ -142,28 +173,67 @@ export async function updateAdminOrderDetails(orderId: string, input: EditOrderI
   try {
     await requireAdmin()
 
-    const existingOrder = await prisma.order.findUnique({
-      where: { id: orderId },
-      include: { items: true },
-    })
-
-    if (!existingOrder) {
-      return { success: false, error: "Order not found." }
-    }
-
-    if (existingOrder.status === "DISPATCHED" || existingOrder.status === "DELIVERED" || existingOrder.status === "CANCELLED") {
-      return { success: false, error: `Orders in ${existingOrder.status} state cannot be edited.` }
-    }
-
     if (!input.items || input.items.length === 0) {
       return { success: false, error: "An order must contain at least one item." }
     }
 
-    const itemsSubtotal = input.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
-    const shippingFee = itemsSubtotal > 50000 ? 0 : 1500
-    const newGrandTotal = itemsSubtotal + shippingFee
-
     await prisma.$transaction(async (tx) => {
+      // 1. Read existing order INSIDE transaction
+      const existingOrder = await tx.order.findUnique({
+        where: { id: orderId },
+        select: {
+          status: true,
+          user: { select: { role: true } },
+        },
+      })
+
+      if (!existingOrder) {
+        throw new Error("Order not found.")
+      }
+
+      if (
+        existingOrder.status === "DISPATCHED" ||
+        existingOrder.status === "DELIVERED" ||
+        existingOrder.status === "CANCELLED"
+      ) {
+        throw new Error(`Orders in ${existingOrder.status} state cannot be edited.`)
+      }
+
+      const isB2B = existingOrder.user?.role === "B2B"
+
+      // 2. Fetch products and tiered prices
+      const productIds = input.items.map((i) => i.productId)
+      const products = await tx.product.findMany({
+        where: { id: { in: productIds } },
+        include: { tieredPrices: { orderBy: { minQty: "asc" } } },
+      })
+
+      const productMap = new Map(products.map((p) => [p.id, p]))
+
+      // 3. Recalculate true unit prices against tiered pricing schedule
+      let itemsSubtotal = 0
+      const recalculatedItems = input.items.map((item) => {
+        const product = productMap.get(item.productId)
+        if (!product) {
+          throw new Error(`Product not found: ${item.productId}`)
+        }
+
+        // Pass product.tieredPrices, quantity, and isB2B
+        const priceInfo = calculateItemPrice(product.tieredPrices, item.quantity, isB2B)
+        const unitPrice = priceInfo.unitPrice
+        itemsSubtotal += item.quantity * unitPrice
+
+        return {
+          product: { connect: { id: item.productId } },
+          quantity: item.quantity,
+          unitPrice,
+        }
+      })
+
+      const shippingFee = itemsSubtotal > 50000 ? 0 : 1500
+      const newGrandTotal = itemsSubtotal + shippingFee
+
+      // 4. Update items and order details atomically
       await tx.orderItem.deleteMany({
         where: { orderId },
       })
@@ -178,11 +248,7 @@ export async function updateAdminOrderDetails(orderId: string, input: EditOrderI
           notes: input.notes,
           totalAmount: newGrandTotal,
           items: {
-            create: input.items.map((item) => ({
-              productId: item.productId,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-            })),
+            create: recalculatedItems,
           },
         },
       })
