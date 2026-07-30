@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Package, Search, Layers, ShoppingBag } from "lucide-react"
+import { Package, Search, Layers, ShoppingBag, Store, Shield } from "lucide-react"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 import { DEMO_CATEGORIES, DEMO_AREAS } from "@/lib/demo-data"
@@ -59,6 +59,14 @@ export async function Navbar() {
               </span>
             </Link>
 
+            {/* Direct All Products Catalog Link */}
+            <Link
+              href="/products"
+              className="flex items-center gap-1.5 text-sm font-bold text-gray-900 hover:text-amber-600 transition"
+            >
+              <Store className="h-4 w-4 text-amber-500" /> All Products
+            </Link>
+
             {/* Categories Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-semibold text-gray-700 hover:text-amber-600 transition outline-none">
@@ -108,6 +116,16 @@ export async function Navbar() {
                 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 hover:text-amber-600 transition"
               >
                 <ShoppingBag className="h-4 w-4 text-amber-500" /> My Orders
+              </Link>
+            )}
+
+            {/* Admin Panel Link (if user is ADMIN) */}
+            {session?.user?.role === "ADMIN" && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-1 text-xs font-black text-amber-800 bg-amber-50 border border-amber-300 px-2.5 py-1 rounded-md hover:bg-amber-100 transition uppercase tracking-wider"
+              >
+                <Shield className="h-3.5 w-3.5 text-amber-600" /> Admin
               </Link>
             )}
           </div>
