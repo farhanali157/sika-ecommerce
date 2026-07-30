@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Package, Search, Layers } from "lucide-react"
+import { Package, Search, Layers, ShoppingBag } from "lucide-react"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
 import { DEMO_CATEGORIES, DEMO_AREAS } from "@/lib/demo-data"
@@ -51,7 +51,7 @@ export async function Navbar() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-4">
           
-          {/* Logo & Navigation Dropdowns */}
+          {/* Logo & Navigation Links */}
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2">
               <span className="bg-amber-500 text-black font-black text-xl px-2.5 py-1 rounded tracking-tighter">
@@ -100,6 +100,16 @@ export async function Navbar() {
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {/* My Orders Direct Link */}
+            {session?.user && (
+              <Link
+                href="/account/orders"
+                className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 hover:text-amber-600 transition"
+              >
+                <ShoppingBag className="h-4 w-4 text-amber-500" /> My Orders
+              </Link>
+            )}
           </div>
 
           {/* Search Input Placeholder */}
