@@ -9,6 +9,7 @@ import {
   MapPin,
   FileText,
   Package,
+  FileDown,
 } from "lucide-react"
 
 type Props = {
@@ -69,7 +70,18 @@ export default async function CustomerOrderDetailPage({ params }: Props) {
           </p>
         </div>
 
-        <CancelOrderButton orderId={order.id} currentStatus={order.status} />
+        {/* Action Controls: PDF Download + Cancellation */}
+        <div className="flex items-center gap-2">
+          <a
+            href={`/api/orders/${order.id}/pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 border border-gray-300 px-3 py-1.5 rounded-xl transition"
+          >
+            <FileDown className="h-3.5 w-3.5" /> PDF Receipt
+          </a>
+          <CancelOrderButton orderId={order.id} currentStatus={order.status} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
