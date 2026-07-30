@@ -9,15 +9,23 @@ type Props = {
 }
 
 export function AddToCartButton({ productId }: Props) {
-  const [quantity, setQuantity] = useState(1)
+  const [quantityInput, setQuantityInput] = useState<string>("1")
   const [isPending, startTransition] = useTransition()
   const [added, setAdded] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const getValidQuantity = (val: string) => {
+    const parsed = parseInt(val, 10)
+    return isNaN(parsed) || parsed < 1 ? 1 : parsed
+  }
+
   const handleAddToCart = () => {
+    const validQty = getValidQuantity(quantityInput)
+    setQuantityInput(validQty.toString())
     setError(null)
+
     startTransition(async () => {
-      const result = await addToCart(productId, quantity)
+      const result = await addToCart(productId, validQty)
 
       if (result.success) {
         setAdded(true)
@@ -32,22 +40,42 @@ export function AddToCartButton({ productId }: Props) {
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-3">
-        {/* Quantity Selector */}
+        {/* Editable Quantity Selector */}
         <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden bg-white">
           <button
             type="button"
-            onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+            onClick={() => {
+              const current = getValidQuantity(quantityInput)
+              setQuantityInput(Math.max(1, current - 1).toString())
+            }}
             className="px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 transition font-bold disabled:opacity-50"
             disabled={isPending}
           >
             -
           </button>
-          <span className="px-4 py-2 text-xs font-mono font-bold text-gray-900 border-x border-gray-200">
-            {quantity}
-          </span>
+          <input
+            type="number"
+            min="1"
+            disabled={isPending}
+            value={quantityInput}
+            onChange={(e) => setQuantityInput(e.target.value)}
+            onBlur={() => {
+              const valid = getValidQuantity(quantityInput)
+              setQuantityInput(valid.toString())
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.currentTarget.blur()
+              }
+            }}
+            className="w-12 text-center text-xs font-mono font-bold text-gray-900 bg-transparent focus:outline-none focus:bg-amber-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none border-x border-gray-200 py-2"
+          />
           <button
             type="button"
-            onClick={() => setQuantity((q) => q + 1)}
+            onClick={() => {
+              const current = getValidQuantity(quantityInput)
+              setQuantityInput((current + 1).toString())
+            }}
             className="px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 transition font-bold disabled:opacity-50"
             disabled={isPending}
           >

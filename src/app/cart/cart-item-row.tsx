@@ -22,14 +22,35 @@ type CartItemProps = {
 export function CartItemRow({ item }: CartItemProps) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  
+  // Track previous quantity prop to adjust local input when server data changes
+  const [prevServerQty, setPrevServerQty] = useState(item.quantity)
+  const [localQty, setLocalQty] = useState<string>(item.quantity.toString())
   const router = useRouter()
 
-  const handleQuantityChange = (newQty: number) => {
+  // Render-phase state sync (React recommended pattern for derived state from props)
+  if (prevServerQty !== item.quantity) {
+    setPrevServerQty(item.quantity)
+    setLocalQty(item.quantity.toString())
+  }
+
+  const commitQuantity = (val: string) => {
+    let parsed = parseInt(val, 10)
+
+    if (isNaN(parsed) || parsed < 1) {
+      parsed = 1
+    }
+
+    setLocalQty(parsed.toString())
+
+    if (parsed === item.quantity) return
+
     setError(null)
     startTransition(async () => {
-      const res = await updateCartItemQuantity(item.id, newQty)
+      const res = await updateCartItemQuantity(item.id, parsed)
       if (!res.success) {
         setError(res.error || "Failed to update quantity")
+        setLocalQty(item.quantity.toString()) // Reset to previous server value on failure
       } else {
         router.refresh()
       }
@@ -74,20 +95,33 @@ export function CartItemRow({ item }: CartItemProps) {
 
         {/* Quantity Controls */}
         <div className="sm:col-span-3 flex items-center justify-start sm:justify-center gap-3">
-          <div className="flex items-center border border-gray-200 rounded-lg bg-white shadow-sm">
+          <div className="flex items-center border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden">
             <button
-              disabled={isPending}
-              onClick={() => handleQuantityChange(item.quantity - 1)}
+              type="button"
+              disabled={isPending || item.quantity <= 1}
+              onClick={() => commitQuantity((item.quantity - 1).toString())}
               className="px-2.5 py-1 text-xs font-bold text-gray-600 hover:bg-gray-100 disabled:opacity-50"
             >
               -
             </button>
-            <span className="px-3 text-xs font-mono font-bold text-gray-900">
-              {item.quantity}
-            </span>
-            <button
+            <input
+              type="number"
+              min="1"
               disabled={isPending}
-              onClick={() => handleQuantityChange(item.quantity + 1)}
+              value={localQty}
+              onChange={(e) => setLocalQty(e.target.value)}
+              onBlur={(e) => commitQuantity(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.currentTarget.blur()
+                }
+              }}
+              className="w-10 text-center text-xs font-mono font-bold text-gray-900 bg-transparent focus:outline-none focus:bg-amber-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none border-x border-gray-200 py-1"
+            />
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => commitQuantity((item.quantity + 1).toString())}
               className="px-2.5 py-1 text-xs font-bold text-gray-600 hover:bg-gray-100 disabled:opacity-50"
             >
               +
