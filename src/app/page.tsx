@@ -96,7 +96,7 @@ export default async function HomePage() {
             </p>
             <div className="pt-2">
               <Link
-                href="/category/waterproofing"
+                href="/products" // <-- Updated from /category/waterproofing
                 className="bg-amber-500 hover:bg-amber-600 text-black font-extrabold px-6 py-3.5 rounded-lg transition shadow-lg inline-flex items-center gap-2"
               >
                 Shop Products <ArrowRight className="h-5 w-5" />
