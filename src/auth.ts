@@ -10,12 +10,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     ...authConfig.callbacks,
     async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id
-        token.role = (user as { role?: Role }).role
-      }
-      return token
-    },
+  // 1. On initial login, store ID and Role in token
+  if (user) {
+    token.id = user.id
+    token.role = (user as { role?: Role }).role || "CUSTOMER"
+    return token
+  }
+
+  // 2. Fallback check if token exists but role wasn't attached
+  if (token.id && !token.role) {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: token.id as string },
+      select: { role: true },
+    })
+    if (dbUser) {
+      token.role = dbUser.role
+    }
+  }
+
+  return token
+},
     async session({ session, token }) {
       if (session.user) {
         session.user.id = (token.id as string) || (token.sub as string)
