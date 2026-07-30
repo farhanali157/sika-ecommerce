@@ -79,11 +79,13 @@ export async function createOrder(input: CreateOrderInput) {
       const shippingFee = subtotal > 50000 ? 0 : 1500
       const grandTotal = subtotal + shippingFee
 
-      // 5. Create Order with snapshot details
+      // 5. Create Order with complete pricing snapshot
       const newOrder = await tx.order.create({
         data: {
           userId: orderUserId ?? undefined,
           status: "PENDING",
+          subtotal: subtotal,         // <-- Added: Explicit subtotal
+          shippingFee: shippingFee,   // <-- Added: Explicit shippingFee
           totalAmount: grandTotal,
           customerName: input.customerName,
           customerEmail: input.customerEmail.toLowerCase().trim(),
