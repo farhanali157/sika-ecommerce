@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { User, LogOut, Shield, ShoppingBag } from "lucide-react"
 import { signOut } from "next-auth/react"
 import type { Session } from "next-auth"
@@ -18,6 +19,7 @@ type NavActionsProps = {
 }
 
 export function NavActions({ session }: NavActionsProps) {
+  const router = useRouter()
   const [isCartOpen, setIsCartOpen] = useState(false)
 
   const userRole = session?.user?.role
@@ -61,10 +63,11 @@ export function NavActions({ session }: NavActionsProps) {
             </div>
 
             {userRole === "ADMIN" && (
-              <DropdownMenuItem asChild>
-                <Link href="/admin" className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-amber-50 hover:text-amber-600 rounded-lg transition">
-                  <Shield className="h-4 w-4 text-amber-600" /> Admin Dashboard
-                </Link>
+              <DropdownMenuItem
+                onClick={() => router.push("/admin")}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-amber-50 hover:text-amber-600 rounded-lg transition cursor-pointer"
+              >
+                <Shield className="h-4 w-4 text-amber-600" /> Admin Dashboard
               </DropdownMenuItem>
             )}
 

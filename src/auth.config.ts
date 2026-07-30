@@ -6,6 +6,12 @@ export const authConfig = {
     signIn: "/login",
   },
   callbacks: {
+    session({ session, token }) {
+      if (session.user) {
+        session.user.role = token.role as "CUSTOMER" | "B2B" | "ADMIN"
+      }
+      return session
+    },
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user
       const userRole = auth?.user?.role
