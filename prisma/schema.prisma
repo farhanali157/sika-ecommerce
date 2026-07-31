@@ -19,6 +19,18 @@ enum ProductStatus {
   BACKORDER
 }
 
+enum PaymentMethod {
+  COD
+  ONLINE
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
@@ -150,6 +162,9 @@ model Order {
   totalAmount     Decimal     @db.Decimal(12, 2)
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
+  paymentMethod   PaymentMethod @default(COD)
+  paymentStatus   PaymentStatus @default(PENDING)
+  paymentTxnId    String?       // Transaction ID returned from payment gateway
 
   user  User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
   items OrderItem[]
