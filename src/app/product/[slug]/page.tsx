@@ -36,6 +36,7 @@ export default async function ProductDetailPage({ params }: Props) {
         images: true,
         tdsUrl: true,
         sdsUrl: true,
+        discountPercent: true,
         category: {
           select: {
             name: true,
@@ -70,7 +71,10 @@ export default async function ProductDetailPage({ params }: Props) {
 
   if (!product) return notFound()
 
-  const retailPrice = product.tieredPrices[0]?.price ?? 0
+  const rawRetailPrice = product.tieredPrices[0]?.price ?? 0
+  const discount = product.discountPercent ?? 0
+  const discountMultiplier = 1 - discount / 100
+  const retailPrice = Math.round(rawRetailPrice * discountMultiplier)
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
@@ -100,12 +104,24 @@ export default async function ProductDetailPage({ params }: Props) {
               <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-2.5 py-1 rounded border border-amber-200">
                 {product.category.name}
               </span>
+              {discount > 0 && (
+                <span className="text-[11px] font-bold uppercase tracking-wider text-red-700 bg-red-50 px-2.5 py-1 rounded border border-red-200">
+                  {discount}% OFF
+                </span>
+              )}
             </div>
             <h1 className="text-3xl font-black text-gray-900 tracking-tight">{product.name}</h1>
-            <p className="text-2xl font-extrabold text-gray-900 mt-3">
-              PKR {retailPrice.toLocaleString()}
-              <span className="text-xs text-gray-500 font-normal ml-2">(Retail Base Price)</span>
-            </p>
+            <div className="flex items-baseline gap-3 mt-3">
+              <p className="text-2xl font-extrabold text-gray-900">
+                PKR {retailPrice.toLocaleString()}
+              </p>
+              {discount > 0 && (
+                <p className="text-sm text-gray-400 line-through">
+                  PKR {rawRetailPrice.toLocaleString()}
+                </p>
+              )}
+              <span className="text-xs text-gray-500 font-normal">(Retail Base Price)</span>
+            </div>
           </div>
 
           {/* Add to Cart Component */}
@@ -171,17 +187,20 @@ export default async function ProductDetailPage({ params }: Props) {
 
             {isB2B ? (
               <div className="space-y-2">
-                {product.tieredPrices.map((tier) => (
-                  <div
-                    key={tier.id}
-                    className="flex justify-between items-center text-xs py-2 px-3 bg-white rounded-lg border border-gray-200"
-                  >
-                    <span className="font-semibold text-gray-700">Orders of {tier.minQty}+ units</span>
-                    <span className="font-extrabold text-gray-900">
-                      PKR {tier.price.toLocaleString()} / unit
-                    </span>
-                  </div>
-                ))}
+                {product.tieredPrices.map((tier) => {
+                  const effectiveTierPrice = Math.round(tier.price * discountMultiplier)
+                  return (
+                    <div
+                      key={tier.id}
+                      className="flex justify-between items-center text-xs py-2 px-3 bg-white rounded-lg border border-gray-200"
+                    >
+                      <span className="font-semibold text-gray-700">Orders of {tier.minQty}+ units</span>
+                      <span className="font-extrabold text-gray-900">
+                        PKR {effectiveTierPrice.toLocaleString()} / unit
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             ) : (
               <div className="flex items-start gap-3 text-xs text-amber-900 bg-amber-50 p-3.5 rounded-lg border border-amber-200">

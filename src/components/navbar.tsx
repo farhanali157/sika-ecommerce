@@ -41,8 +41,8 @@ export async function Navbar() {
         <div className="mx-auto max-w-7xl flex justify-between items-center">
           <span>Official Sika® E-Commerce Platform</span>
           <div className="flex gap-4">
-            <Link href="/contact" className="hover:underline">Support</Link>
-            <Link href="/locator" className="hover:underline">Distributor Finder</Link>
+            <a href="mailto:support@sika.com.pk" className="hover:underline">Support</a>
+            <Link href="/products" className="hover:underline">Distributor Finder</Link>
           </div>
         </div>
       </div>

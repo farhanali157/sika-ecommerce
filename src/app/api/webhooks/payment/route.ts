@@ -5,16 +5,29 @@ import crypto from "crypto"
 export async function POST(req: Request) {
   try {
     const rawBody = await req.text()
-    const signature = req.headers.get("x-gateway-signature")
+    const signature = req.headers.get("x-gateway-signature") || ""
 
-    // Verify merchant signature hash against incoming payload
-    const secret = process.env.PAYMENT_GATEWAY_SECRET || "sandbox_secret"
+    const secret = process.env.PAYMENT_GATEWAY_SECRET
+
+    if (!secret && process.env.NODE_ENV === "production") {
+      console.error("[PAYMENT_WEBHOOK_ERROR] PAYMENT_GATEWAY_SECRET missing in production.")
+      return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
+    }
+
+    const activeSecret = secret || "sandbox_secret"
+
     const expectedSignature = crypto
-      .createHmac("sha256", secret)
+      .createHmac("sha256", activeSecret)
       .update(rawBody)
       .digest("hex")
 
-    if (signature !== expectedSignature) {
+    const sigBuffer = Buffer.from(signature)
+    const expectedBuffer = Buffer.from(expectedSignature)
+
+    if (
+      sigBuffer.length !== expectedBuffer.length ||
+      !crypto.timingSafeEqual(sigBuffer, expectedBuffer)
+    ) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
     }
 
