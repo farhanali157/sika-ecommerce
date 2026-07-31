@@ -17,30 +17,26 @@ test.describe("Customer End-to-End Flow", () => {
     const addToCartBtn = page.getByRole("button", { name: /Add to Cart/i })
     await addToCartBtn.click()
 
-    // 4. Open Cart Drawer and click link to navigate to /cart
+    // 4. Open Cart Drawer and click link to navigate directly to /checkout
     await page.getByRole("button", { name: /Open Cart Drawer/i }).click()
     await page.getByRole("link", { name: /Proceed to Checkout/i }).click()
 
-    // 5. Arrive on /cart and click the checkout link to go to /checkout
-    await expect(page).toHaveURL("/cart")
-    await page.getByRole("main").getByRole("link", { name: /Proceed to Checkout/i }).click()
-
-    // 6. Confirm arrival on /checkout
+    // 5. Confirm direct arrival on /checkout
     await expect(page).toHaveURL("/checkout")
 
-    // Fill form inputs on Checkout page
-    await page.getByPlaceholder(/Ali Khan/i).fill("Test Customer")
-    await page.getByPlaceholder(/name@company.com/i).fill("test@sika.pk")
-    await page.getByPlaceholder(/0300-1234567/i).fill("03001234567")
-    await page.getByPlaceholder(/Plot #, Street/i).fill("Plot 12, Industrial Area, Gulberg")
+    // Fill form inputs on Checkout page using accessible labels
+    await page.getByLabel(/Full Name \/ Business Name/i).fill("Test Customer")
+    await page.getByLabel(/Email Address/i).fill("test@sika.pk")
+    await page.getByLabel(/Phone Number/i).fill("03001234567")
+    await page.getByLabel(/Site \/ Delivery Address/i).fill("Plot 12, Industrial Area, Gulberg")
 
     // Select City from dropdown
-    await page.getByRole("combobox").selectOption("Lahore")
+    await page.getByRole("combobox", { name: /City/i }).selectOption("Lahore")
 
     // Submit Order
     await page.getByRole("button", { name: /Place Order/i }).click()
 
-    // 7. Expect redirect to Order Success page
+    // 6. Expect redirect to Order Success page
     await expect(page).toHaveURL(/\/order\/success/, { timeout: 10000 })
     await expect(
       page.getByRole("heading", { level: 1, name: /Order Placed Successfully/i })
