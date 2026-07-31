@@ -1,4 +1,5 @@
 import { Resend } from "resend"
+import { toNumber } from "@/lib/serialize"
 
 // Initialize Resend lazily to prevent build-time crashes if RESEND_API_KEY is missing during build
 const getResendClient = () => {
@@ -58,6 +59,7 @@ export async function sendOrderConfirmationEmail(payload: OrderEmailPayload) {
     }
 
     const safeCustomerName = escapeHtml(payload.customerName)
+    const formattedTotalAmount = toNumber(payload.totalAmount).toLocaleString()
 
     const itemsListHtml = payload.items
       .map(
@@ -65,7 +67,7 @@ export async function sendOrderConfirmationEmail(payload: OrderEmailPayload) {
           `<tr>
             <td style="padding: 8px; border-bottom: 1px solid #eee;">${escapeHtml(item.name)}</td>
             <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">PKR ${Number(item.unitPrice).toLocaleString()}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">PKR ${toNumber(item.unitPrice).toLocaleString()}</td>
           </tr>`
       )
       .join("")
@@ -92,7 +94,7 @@ export async function sendOrderConfirmationEmail(payload: OrderEmailPayload) {
         </table>
 
         <p style="font-size: 16px; font-weight: bold; text-align: right;">
-          Total Amount: <span style="color: #d97706;">PKR ${Number(payload.totalAmount).toLocaleString()}</span>
+          Total Amount: <span style="color: #d97706;">PKR ${formattedTotalAmount}</span>
         </p>
 
         <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
@@ -103,7 +105,6 @@ export async function sendOrderConfirmationEmail(payload: OrderEmailPayload) {
     `
 
     const { data, error } = await resend.emails.send({
-      // Using Resend's free testing sender domain
       from: "Sika Orders <onboarding@resend.dev>",
       to: [payload.customerEmail],
       subject: `Order Confirmation #${payload.orderId.slice(-8)} — Sika Pakistan`,
@@ -118,7 +119,6 @@ export async function sendOrderConfirmationEmail(payload: OrderEmailPayload) {
     console.log(`[EMAIL_DISPATCH_SUCCESS] Order confirmation sent to ${payload.customerEmail} (ID: ${data?.id})`)
     return { success: true, id: data?.id }
   } catch (err: unknown) {
-    // Top-level guard guarantees zero unhandled promises / broken DB transactions
     console.error(`[EMAIL_DISPATCH_EXCEPTION] Non-blocking mailer exception for Order #${payload.orderId}:`, err)
     return { success: false, error: err }
   }

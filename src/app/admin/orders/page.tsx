@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { getAdminOrders } from "@/app/actions/admin-orders"
+import { serializeDecimals } from "@/lib/serialize"
 import { OrderStatusSelect } from "./order-status-select"
 import { AdminOrderFilters } from "./admin-order-filters"
 import { Package, ShoppingBag, Clock, CheckCircle2, ChevronRight, Building2 } from "lucide-react"
@@ -16,9 +17,9 @@ type Props = {
 
 export default async function AdminOrdersPage({ searchParams }: Props) {
   const params = await searchParams
-  const { success, orders, error } = await getAdminOrders(params)
+  const { success, orders: rawOrders, error } = await getAdminOrders(params)
 
-  if (!success) {
+  if (!success || !rawOrders) {
     return (
       <div className="p-8 max-w-7xl mx-auto">
         <div className="bg-rose-50 border border-rose-200 text-rose-700 p-4 rounded-xl text-sm font-semibold">
@@ -28,9 +29,11 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
     )
   }
 
+  const orders = serializeDecimals(rawOrders)
+
   const totalOrders = orders.length
   const pendingCount = orders.filter((o) => o.status === "PENDING" || o.status === "PROCESSING").length
-  const totalRevenue = orders.reduce((acc, o) => acc + Number(o.totalAmount), 0)
+  const totalRevenue = orders.reduce((acc, o) => acc + o.totalAmount, 0)
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
@@ -120,7 +123,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
                           #{order.id.slice(-8)}
                         </Link>
                         <p className="text-[10px] text-gray-400 mt-0.5">
-                          {new Date(order.createdAt).toLocaleDateString("en-PK", {
+                          {new Date(String(order.createdAt)).toLocaleDateString("en-PK", {
                             day: "numeric",
                             month: "short",
                             year: "numeric",
@@ -170,7 +173,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
                       </td>
 
                       <td className="py-4 px-4 align-top font-bold text-gray-900">
-                        PKR {Number(order.totalAmount).toLocaleString()}
+                        PKR {order.totalAmount.toLocaleString()}
                       </td>
 
                       <td className="py-4 px-4 align-top">

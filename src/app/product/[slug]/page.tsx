@@ -1,42 +1,15 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { FileText, ShieldAlert, Lock, Layers, ExternalLink, CheckCircle2 } from "lucide-react"
-import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
+import { serializeDecimals } from "@/lib/serialize"
+import { STOREFRONT_PRODUCT_FILTER } from "@/lib/product-queries"
 import { ProductImageGallery } from "@/components/product-image-gallery"
 import { AddToCartButton } from "@/components/add-to-cart-button"
 
 type Props = {
   params: Promise<{ slug: string }>
-}
-
-type TieredPriceSummary = {
-  id: string
-  minQty: number
-  price: number | Prisma.Decimal
-}
-
-type ProductDetailPageData = {
-  id: string
-  name: string
-  slug: string
-  sku: string
-  description: string
-  packSize: string
-  images: string[]
-  tdsUrl: string | null
-  sdsUrl: string | null
-  category: {
-    name: string
-    slug: string
-  }
-  applicationAreas: {
-    id: string
-    name: string
-    slug: string
-  }[]
-  tieredPrices: TieredPriceSummary[]
 }
 
 export default async function ProductDetailPage({ params }: Props) {
@@ -45,11 +18,14 @@ export default async function ProductDetailPage({ params }: Props) {
   const userRole = session?.user?.role
   const isB2B = userRole === "B2B" || userRole === "ADMIN"
 
-  let product: ProductDetailPageData | null = null
+  let product = null
 
   try {
-    product = await prisma.product.findUnique({
-      where: { slug },
+    const rawProduct = await prisma.product.findFirst({
+      where: {
+        slug,
+        ...STOREFRONT_PRODUCT_FILTER,
+      },
       select: {
         id: true,
         name: true,
@@ -83,6 +59,10 @@ export default async function ProductDetailPage({ params }: Props) {
         },
       },
     })
+
+    if (rawProduct) {
+      product = serializeDecimals(rawProduct)
+    }
   } catch (error) {
     console.error("Database query failed on ProductDetailPage:", error)
     throw error
@@ -90,8 +70,7 @@ export default async function ProductDetailPage({ params }: Props) {
 
   if (!product) return notFound()
 
-  const rawRetailPrice = product.tieredPrices[0]?.price ?? 0
-  const retailPrice = typeof rawRetailPrice === "number" ? rawRetailPrice : Number(rawRetailPrice)
+  const retailPrice = product.tieredPrices[0]?.price ?? 0
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
@@ -192,20 +171,17 @@ export default async function ProductDetailPage({ params }: Props) {
 
             {isB2B ? (
               <div className="space-y-2">
-                {product.tieredPrices.map((tier) => {
-                  const priceNum = typeof tier.price === "number" ? tier.price : Number(tier.price)
-                  return (
-                    <div
-                      key={tier.id}
-                      className="flex justify-between items-center text-xs py-2 px-3 bg-white rounded-lg border border-gray-200"
-                    >
-                      <span className="font-semibold text-gray-700">Orders of {tier.minQty}+ units</span>
-                      <span className="font-extrabold text-gray-900">
-                        PKR {priceNum.toLocaleString()} / unit
-                      </span>
-                    </div>
-                  )
-                })}
+                {product.tieredPrices.map((tier) => (
+                  <div
+                    key={tier.id}
+                    className="flex justify-between items-center text-xs py-2 px-3 bg-white rounded-lg border border-gray-200"
+                  >
+                    <span className="font-semibold text-gray-700">Orders of {tier.minQty}+ units</span>
+                    <span className="font-extrabold text-gray-900">
+                      PKR {tier.price.toLocaleString()} / unit
+                    </span>
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="flex items-start gap-3 text-xs text-amber-900 bg-amber-50 p-3.5 rounded-lg border border-amber-200">

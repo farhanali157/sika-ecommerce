@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
+import { serializeDecimals } from "@/lib/serialize"
 import { ProductEditFormClient } from "./product-edit-form-client"
 
 type Props = {
@@ -25,13 +26,7 @@ export default async function EditProductPage({ params }: Props) {
     notFound()
   }
 
-  const product = {
-    ...rawProduct,
-    tieredPrices: rawProduct.tieredPrices.map((tp) => ({
-      ...tp,
-      price: Number(tp.price),
-    })),
-  }
+  const product = serializeDecimals(rawProduct)
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 sm:p-10">

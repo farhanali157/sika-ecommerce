@@ -1,7 +1,8 @@
-import Link from "next/link"
-import { notFound } from "next/navigation"
-import { getCustomerOrderDetail } from "@/app/actions/customer-orders"
-import { CancelOrderButton } from "./cancel-order-button"
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { getCustomerOrderDetail } from "@/app/actions/customer-orders";
+import { serializeDecimals } from "@/lib/serialize";
+import { CancelOrderButton } from "./cancel-order-button";
 import {
   ArrowLeft,
   Calendar,
@@ -10,35 +11,34 @@ import {
   FileText,
   Package,
   FileDown,
-} from "lucide-react"
+} from "lucide-react";
 
 type Props = {
-  params: Promise<{ id: string }>
-}
+  params: Promise<{ id: string }>;
+};
 
 export default async function CustomerOrderDetailPage({ params }: Props) {
-  const { id } = await params
-  const { order, error } = await getCustomerOrderDetail(id)
+  const { id } = await params;
+  const { order: rawOrder, error } = await getCustomerOrderDetail(id);
 
-  if (!order || error) {
-    notFound()
+  if (!rawOrder || error) {
+    notFound();
   }
 
-  // Cast order as a generic record to safely read new migration fields (subtotal/shippingFee)
-  const orderRecord = order as Record<string, unknown>
+  const order = serializeDecimals(rawOrder);
 
   const orderSubtotal =
-    orderRecord.subtotal !== undefined && orderRecord.subtotal !== null
-      ? Number(orderRecord.subtotal)
+    order.subtotal !== undefined && order.subtotal !== null
+      ? order.subtotal
       : order.items.reduce(
-          (sum, item) => sum + Number(item.unitPrice) * item.quantity,
-          0
-        )
+          (sum, item) => sum + item.unitPrice * item.quantity,
+          0,
+        );
 
   const shippingFee =
-    orderRecord.shippingFee !== undefined && orderRecord.shippingFee !== null
-      ? Number(orderRecord.shippingFee)
-      : Number(order.totalAmount) - orderSubtotal
+    order.shippingFee !== undefined && order.shippingFee !== null
+      ? order.shippingFee
+      : order.totalAmount - orderSubtotal;
 
   return (
     <div className="max-w-4xl mx-auto p-6 md:p-8 space-y-6">
@@ -63,7 +63,7 @@ export default async function CustomerOrderDetailPage({ params }: Props) {
           </div>
           <p className="text-xs text-gray-400 mt-1 flex items-center gap-1.5">
             <Calendar className="h-3.5 w-3.5" /> Placed on{" "}
-            {new Date(order.createdAt).toLocaleString("en-PK", {
+            {new Date(String(order.createdAt)).toLocaleString("en-PK", {
               dateStyle: "medium",
               timeStyle: "short",
             })}
@@ -94,7 +94,7 @@ export default async function CustomerOrderDetailPage({ params }: Props) {
 
             <div className="divide-y divide-gray-100">
               {order.items.map((item) => {
-                const itemSubtotal = Number(item.unitPrice) * item.quantity
+                const itemSubtotal = item.unitPrice * item.quantity;
                 return (
                   <div
                     key={item.id}
@@ -105,17 +105,18 @@ export default async function CustomerOrderDetailPage({ params }: Props) {
                         {item.product.name}
                       </p>
                       <p className="text-[10px] text-gray-400">
-                        SKU: {item.product.sku} | Pack: {item.product.packSize || "N/A"}
+                        SKU: {item.product.sku} | Pack:{" "}
+                        {item.product.packSize || "N/A"}
                       </p>
                       <p className="text-[11px] text-gray-500 mt-0.5">
-                        {item.quantity} x PKR {Number(item.unitPrice).toLocaleString()}
+                        {item.quantity} x PKR {item.unitPrice.toLocaleString()}
                       </p>
                     </div>
                     <span className="font-bold text-gray-900">
                       PKR {itemSubtotal.toLocaleString()}
                     </span>
                   </div>
-                )
+                );
               })}
             </div>
 
@@ -136,7 +137,7 @@ export default async function CustomerOrderDetailPage({ params }: Props) {
               <div className="flex justify-between text-sm font-black text-gray-900 border-t border-gray-100 pt-2">
                 <span>Total Amount:</span>
                 <span className="text-amber-600">
-                  PKR {Number(order.totalAmount).toLocaleString()}
+                  PKR {order.totalAmount.toLocaleString()}
                 </span>
               </div>
             </div>
@@ -179,5 +180,5 @@ export default async function CustomerOrderDetailPage({ params }: Props) {
         </div>
       </div>
     </div>
-  )
+  );
 }

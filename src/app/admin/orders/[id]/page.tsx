@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/app/actions/admin-orders";
+import { serializeDecimals } from "@/lib/serialize";
 import { OrderStatusSelect } from "../order-status-select";
 import { EditOrderModal } from "./edit-order-modal";
 import {
@@ -24,7 +25,7 @@ export default async function AdminOrderDetailPage({ params }: Props) {
   await requireAdmin();
   const { id } = await params;
 
-  const order = await prisma.order.findUnique({
+  const rawOrder = await prisma.order.findUnique({
     where: { id },
     include: {
       user: {
@@ -52,9 +53,11 @@ export default async function AdminOrderDetailPage({ params }: Props) {
     },
   });
 
-  if (!order) {
+  if (!rawOrder) {
     notFound();
   }
+
+  const order = serializeDecimals(rawOrder);
 
   const isB2B = order.user?.role === "B2B";
   const isLocked =
@@ -87,7 +90,7 @@ export default async function AdminOrderDetailPage({ params }: Props) {
           </div>
           <p className="text-xs text-gray-400 mt-1 flex items-center gap-1.5">
             <Calendar className="h-3.5 w-3.5" /> Placed on{" "}
-            {new Date(order.createdAt).toLocaleString("en-PK", {
+            {new Date(String(order.createdAt)).toLocaleString("en-PK", {
               dateStyle: "medium",
               timeStyle: "short",
             })}
@@ -111,7 +114,7 @@ export default async function AdminOrderDetailPage({ params }: Props) {
               productId: item.productId,
               productName: item.product.name,
               quantity: item.quantity,
-              unitPrice: Number(item.unitPrice),
+              unitPrice: item.unitPrice,
             }))}
           />
 
@@ -132,13 +135,12 @@ export default async function AdminOrderDetailPage({ params }: Props) {
         <div className="md:col-span-2 space-y-6">
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4">
             <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2 border-b border-gray-100 pb-3">
-              <CreditCard className="h-4 w-4 text-amber-500" /> Itemized Order
-              Snapshot
+              <CreditCard className="h-4 w-4 text-amber-500" /> Itemized Order Snapshot
             </h2>
 
             <div className="divide-y divide-gray-100">
               {order.items.map((item) => {
-                const subtotal = Number(item.unitPrice) * item.quantity;
+                const subtotal = item.unitPrice * item.quantity;
                 return (
                   <div
                     key={item.id}
@@ -154,7 +156,7 @@ export default async function AdminOrderDetailPage({ params }: Props) {
                       </p>
                       <p className="text-[11px] text-gray-500 mt-0.5">
                         {item.quantity} x PKR{" "}
-                        {Number(item.unitPrice).toLocaleString()}
+                        {item.unitPrice.toLocaleString()}
                       </p>
                     </div>
                     <span className="font-bold text-gray-900">
@@ -170,7 +172,7 @@ export default async function AdminOrderDetailPage({ params }: Props) {
               <div className="flex justify-between text-gray-500">
                 <span>Shipping Fee:</span>
                 <span>
-                  {Number(order.totalAmount) > 50000
+                  {order.totalAmount > 50000
                     ? "FREE (PKR 0)"
                     : "PKR 1,500"}
                 </span>
@@ -178,7 +180,7 @@ export default async function AdminOrderDetailPage({ params }: Props) {
               <div className="flex justify-between text-sm font-black text-gray-900 border-t border-gray-100 pt-2">
                 <span>Grand Total:</span>
                 <span className="text-amber-600">
-                  PKR {Number(order.totalAmount).toLocaleString()}
+                  PKR {order.totalAmount.toLocaleString()}
                 </span>
               </div>
             </div>

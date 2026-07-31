@@ -1,6 +1,7 @@
-import Link from "next/link"
-import { getCustomerOrders } from "@/app/actions/customer-orders"
-import { Package, Calendar, ChevronRight, ShoppingBag } from "lucide-react"
+import Link from "next/link";
+import { getCustomerOrders } from "@/app/actions/customer-orders";
+import { serializeDecimals } from "@/lib/serialize";
+import { Package, Calendar, ChevronRight, ShoppingBag } from "lucide-react";
 
 const STATUS_COLOR_MAP: Record<string, string> = {
   PENDING: "bg-amber-50 text-amber-700 border-amber-200",
@@ -8,16 +9,19 @@ const STATUS_COLOR_MAP: Record<string, string> = {
   DISPATCHED: "bg-purple-50 text-purple-700 border-purple-200",
   DELIVERED: "bg-emerald-50 text-emerald-700 border-emerald-200",
   CANCELLED: "bg-rose-50 text-rose-700 border-rose-200",
-}
+};
 
 export default async function AccountOrdersPage() {
-  const { orders, error } = await getCustomerOrders()
+  const { orders: rawOrders, error } = await getCustomerOrders();
+  const orders = serializeDecimals(rawOrders);
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black text-gray-900">Your Order History</h1>
+          <h1 className="text-2xl font-black text-gray-900">
+            Your Order History
+          </h1>
           <p className="text-xs text-gray-500 mt-1">
             View tracking details and order receipts for your past purchases.
           </p>
@@ -36,7 +40,9 @@ export default async function AccountOrdersPage() {
             <ShoppingBag className="h-6 w-6" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-gray-900">No orders placed yet</h3>
+            <h3 className="text-sm font-bold text-gray-900">
+              No orders placed yet
+            </h3>
             <p className="text-xs text-gray-500 mt-1">
               Explore our industrial product catalog and place your first order.
             </p>
@@ -52,8 +58,12 @@ export default async function AccountOrdersPage() {
         <div className="space-y-4">
           {orders.map((order) => {
             const badgeStyle =
-              STATUS_COLOR_MAP[order.status] || "bg-gray-50 text-gray-700 border-gray-200"
-            const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0)
+              STATUS_COLOR_MAP[order.status] ||
+              "bg-gray-50 text-gray-700 border-gray-200";
+            const itemCount = order.items.reduce(
+              (sum, item) => sum + item.quantity,
+              0,
+            );
 
             return (
               <div
@@ -73,9 +83,12 @@ export default async function AccountOrdersPage() {
                   </div>
                   <div className="text-xs text-gray-400 flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5" />
-                    {new Date(order.createdAt).toLocaleDateString("en-PK", {
-                      dateStyle: "medium",
-                    })}
+                    {new Date(String(order.createdAt)).toLocaleDateString(
+                      "en-PK",
+                      {
+                        dateStyle: "medium",
+                      },
+                    )}
                   </div>
                 </div>
 
@@ -86,7 +99,7 @@ export default async function AccountOrdersPage() {
                       {itemCount} {itemCount === 1 ? "Item" : "Items"}
                     </p>
                     <p className="text-gray-900 font-bold">
-                      PKR {Number(order.totalAmount).toLocaleString()}
+                      PKR {order.totalAmount.toLocaleString()}
                     </p>
                   </div>
 
@@ -98,10 +111,10 @@ export default async function AccountOrdersPage() {
                   </Link>
                 </div>
               </div>
-            )
+            );
           })}
         </div>
       )}
     </div>
-  )
+  );
 }

@@ -1,19 +1,14 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, ShieldCheck, Truck, Wrench, Package } from "lucide-react";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { serializeDecimals } from "@/lib/serialize";
+import { STOREFRONT_PRODUCT_FILTER } from "@/lib/product-queries";
 
 type CategorySummary = {
   id: string;
   name: string;
   slug: string;
-};
-
-type TieredPrice = {
-  id: string;
-  minQty: number;
-  price: number | Prisma.Decimal;
 };
 
 type FeaturedProduct = {
@@ -23,7 +18,11 @@ type FeaturedProduct = {
   packSize: string;
   description: string;
   images: string[];
-  tieredPrices: TieredPrice[];
+  tieredPrices: Array<{
+    id: string;
+    minQty: number;
+    price: number;
+  }>;
 };
 
 export default async function HomePage() {
@@ -41,7 +40,11 @@ export default async function HomePage() {
       take: 4,
     });
 
-    featuredProducts = await prisma.product.findMany({
+    const rawFeaturedProducts = await prisma.product.findMany({
+      where: {
+        ...STOREFRONT_PRODUCT_FILTER,
+        isFeatured: true,
+      },
       take: 6,
       select: {
         id: true,
@@ -60,6 +63,9 @@ export default async function HomePage() {
         },
       },
     });
+
+    // Cast the returned serialized type cleanly to FeaturedProduct[]
+    featuredProducts = serializeDecimals(rawFeaturedProducts) as unknown as FeaturedProduct[];
   } catch (error) {
     console.error("[Homepage] Database fetch degraded:", error);
     isDbOffline = true;
@@ -67,9 +73,8 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
-      {/* 1. HERO BANNER WITH BACKGROUND IMAGE */}
+      {/* HERO BANNER */}
       <section className="relative overflow-hidden bg-neutral-900 text-white py-16 sm:py-24 px-4 sm:px-6 lg:px-8">
-        {/* Unsplash Construction Background Image Overlay */}
         <div className="absolute inset-0 z-0">
           <Image
             src="https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1920&q=80"
@@ -80,7 +85,7 @@ export default async function HomePage() {
           />
           <div className="absolute inset-0 bg-linear-to-r from-neutral-950 via-neutral-900/80 to-transparent" />
         </div>
-        {/* Hero Text Content */}
+
         <div className="relative z-10 mx-auto max-w-7xl">
           <div className="max-w-2xl space-y-6">
             <span className="inline-block bg-amber-500 text-black text-xs font-bold uppercase tracking-wider px-3 py-1 rounded">
@@ -96,7 +101,7 @@ export default async function HomePage() {
             </p>
             <div className="pt-2">
               <Link
-                href="/products" // <-- Updated from /category/waterproofing
+                href="/products"
                 className="bg-amber-500 hover:bg-amber-600 text-black font-extrabold px-6 py-3.5 rounded-lg transition shadow-lg inline-flex items-center gap-2"
               >
                 Shop Products <ArrowRight className="h-5 w-5" />
@@ -106,7 +111,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* 2. VALUE PROPOSITION STRIP */}
+      {/* VALUE PROPOSITION STRIP */}
       <section className="bg-amber-500 text-black py-4 border-b border-amber-600">
         <div className="mx-auto max-w-7xl px-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-center text-sm font-bold">
           <div className="flex items-center justify-center gap-2">
@@ -116,13 +121,12 @@ export default async function HomePage() {
             <Truck className="h-5 w-5" /> Nationwide Delivery & Distribution
           </div>
           <div className="flex items-center justify-center gap-2">
-            <Wrench className="h-5 w-5" /> Technical Datasheets (TDS/SDS)
-            Included
+            <Wrench className="h-5 w-5" /> Technical Datasheets (TDS/SDS) Included
           </div>
         </div>
       </section>
 
-      {/* 3. PRODUCTS BY CATEGORY */}
+      {/* PRODUCTS BY CATEGORY */}
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="flex justify-between items-end mb-6">
           <div>
@@ -161,7 +165,7 @@ export default async function HomePage() {
         )}
       </section>
 
-      {/* 4. BEST SELLERS / FEATURED PRODUCTS */}
+      {/* BEST SELLERS / FEATURED PRODUCTS */}
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 bg-white border-t border-gray-200">
         <div className="flex justify-between items-end mb-8">
           <div>
@@ -177,13 +181,8 @@ export default async function HomePage() {
         {featuredProducts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
             {featuredProducts.map((product) => {
-              const rawRetailPrice =
-                product.tieredPrices.find((p) => p.minQty === 1)?.price ?? 0;
               const retailPrice =
-                typeof rawRetailPrice === "number"
-                  ? rawRetailPrice
-                  : Number(rawRetailPrice);
-
+                product.tieredPrices.find((p) => p.minQty === 1)?.price ?? 0;
               const mainImage = product.images?.[0] || null;
 
               return (
@@ -192,7 +191,6 @@ export default async function HomePage() {
                   className="group rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-lg transition flex flex-col justify-between"
                 >
                   <div>
-                    {/* Real Product Image Rendering */}
                     <div className="relative aspect-square w-full rounded-lg bg-gray-100 mb-4 overflow-hidden border border-gray-100 flex items-center justify-center">
                       {mainImage ? (
                         <Image

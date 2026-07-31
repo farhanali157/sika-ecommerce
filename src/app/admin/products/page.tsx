@@ -1,11 +1,12 @@
 import Link from "next/link"
 import Image from "next/image"
 import { prisma } from "@/lib/prisma"
+import { serializeDecimals } from "@/lib/serialize"
 import { Plus, Package } from "lucide-react"
 import { ProductRowActions } from "./product-row-actions"
 
 export default async function AdminProductsPage() {
-  const products = await prisma.product.findMany({
+  const rawProducts = await prisma.product.findMany({
     where: { isArchived: false },
     select: {
       id: true,
@@ -22,6 +23,8 @@ export default async function AdminProductsPage() {
     },
     orderBy: { createdAt: "desc" },
   })
+
+  const products = serializeDecimals(rawProducts)
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 sm:p-10">
@@ -60,8 +63,7 @@ export default async function AdminProductsPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {products.map((product) => {
-                  const rawPrice = product.tieredPrices.find((p) => p.minQty === 1)?.price ?? 0
-                  const retailPrice = typeof rawPrice === "number" ? rawPrice : Number(rawPrice)
+                  const retailPrice = product.tieredPrices.find((p) => p.minQty === 1)?.price ?? 0
                   const mainImage = product.images?.[0] || null
                   const discount = product.discountPercent ?? 0
 

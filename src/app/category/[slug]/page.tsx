@@ -1,47 +1,27 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import { Prisma } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
+import { serializeDecimals } from "@/lib/serialize"
+import { STOREFRONT_PRODUCT_FILTER } from "@/lib/product-queries"
 
 type Props = {
   params: Promise<{ slug: string }>
 }
 
-type TieredPriceSummary = {
-  id: string
-  minQty: number
-  price: number | Prisma.Decimal
-}
-
-type CategoryProduct = {
-  id: string
-  name: string
-  slug: string
-  description: string
-  packSize: string
-  tieredPrices: TieredPriceSummary[]
-}
-
-type CategoryPageData = {
-  id: string
-  name: string
-  description: string | null
-  products: CategoryProduct[]
-}
-
 export default async function CategoryPage({ params }: Props) {
   const { slug } = await params
 
-  let category: CategoryPageData | null = null
+  let category = null
 
   try {
-    category = await prisma.category.findUnique({
+    const rawCategory = await prisma.category.findUnique({
       where: { slug },
       select: {
         id: true,
         name: true,
         description: true,
         products: {
+          where: STOREFRONT_PRODUCT_FILTER,
           select: {
             id: true,
             name: true,
@@ -60,6 +40,10 @@ export default async function CategoryPage({ params }: Props) {
         },
       },
     })
+
+    if (rawCategory) {
+      category = serializeDecimals(rawCategory)
+    }
   } catch (error) {
     console.error("Database query failed on CategoryPage:", error)
     throw error
@@ -86,8 +70,7 @@ export default async function CategoryPage({ params }: Props) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {category.products.map((product) => {
-          const rawPrice = product.tieredPrices[0]?.price ?? 0
-          const basePrice = typeof rawPrice === "number" ? rawPrice : Number(rawPrice)
+          const basePrice = product.tieredPrices[0]?.price ?? 0
 
           return (
             <div

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { serializeDecimals } from "@/lib/serialize"
 import { pdf, DocumentProps } from "@react-pdf/renderer"
 import { OrderReceiptPDF } from "@/components/pdf/order-receipt-pdf"
 import React from "react"
@@ -26,7 +27,7 @@ export async function GET(
         ? { id: orderId }
         : { id: orderId, userId }
 
-    const order = await prisma.order.findFirst({
+    const rawOrder = await prisma.order.findFirst({
       where: whereCondition,
       include: {
         items: {
@@ -42,9 +43,12 @@ export async function GET(
       },
     })
 
-    if (!order) {
+    if (!rawOrder) {
       return NextResponse.json({ error: "Order not found or access denied." }, { status: 404 })
     }
+
+    // Convert Prisma Decimals to JavaScript numbers cleanly
+    const order = serializeDecimals(rawOrder)
 
     // Pass component via React.createElement with DocumentProps element typing
     const pdfElement = React.createElement(OrderReceiptPDF, {

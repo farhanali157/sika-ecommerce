@@ -3,6 +3,8 @@ import Link from "next/link"
 import { Shield, ArrowRight, PackageCheck } from "lucide-react"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
+import { serializeDecimals } from "@/lib/serialize"
+import { STOREFRONT_PRODUCT_FILTER } from "@/lib/product-queries"
 
 type AreaPageProps = {
   params: Promise<{ slug: string }>
@@ -15,10 +17,11 @@ export default async function AreaPage({ params }: AreaPageProps) {
 
   let area = null
   try {
-    area = await prisma.applicationArea.findUnique({
+    const rawArea = await prisma.applicationArea.findUnique({
       where: { slug },
       include: {
         products: {
+          where: STOREFRONT_PRODUCT_FILTER,
           include: {
             category: true,
             tieredPrices: {
@@ -28,9 +31,13 @@ export default async function AreaPage({ params }: AreaPageProps) {
         },
       },
     })
+
+    if (rawArea) {
+      area = serializeDecimals(rawArea)
+    }
   } catch (error) {
     console.error("Error fetching application area:", error)
-    throw error // Re-throw to trigger Next.js error boundary
+    throw error
   }
 
   if (!area) {
@@ -60,13 +67,8 @@ export default async function AreaPage({ params }: AreaPageProps) {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {area.products.map((product) => {
-            const rawBasePrice = product.tieredPrices[0]?.price ?? 0
-            const basePrice = typeof rawBasePrice === "number" ? rawBasePrice : Number(rawBasePrice)
-
-            const rawMaxDiscountPrice = product.tieredPrices[product.tieredPrices.length - 1]?.price
-            const maxDiscountPrice = rawMaxDiscountPrice !== undefined
-              ? (typeof rawMaxDiscountPrice === "number" ? rawMaxDiscountPrice : Number(rawMaxDiscountPrice))
-              : null
+            const basePrice = product.tieredPrices[0]?.price ?? 0
+            const maxDiscountPrice = product.tieredPrices[product.tieredPrices.length - 1]?.price ?? null
 
             return (
               <div

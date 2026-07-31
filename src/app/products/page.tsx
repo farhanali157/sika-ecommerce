@@ -1,9 +1,12 @@
 import { prisma } from "@/lib/prisma"
+import { serializeDecimals } from "@/lib/serialize"
+import { STOREFRONT_PRODUCT_FILTER } from "@/lib/product-queries"
 import { ProductCatalogClient } from "./product-catalog-client"
 
 export default async function ProductsPage() {
   const [rawProducts, categories, applicationAreas] = await Promise.all([
     prisma.product.findMany({
+      where: STOREFRONT_PRODUCT_FILTER,
       select: {
         id: true,
         name: true,
@@ -32,14 +35,8 @@ export default async function ProductsPage() {
     }),
   ])
 
-  // Convert Prisma Decimal objects inside tieredPrices to standard numbers
-  const products = rawProducts.map((product) => ({
-    ...product,
-    tieredPrices: product.tieredPrices.map((tier) => ({
-      ...tier,
-      price: Number(tier.price),
-    })),
-  }))
+  // Safely convert all Prisma Decimals to JavaScript numbers
+  const products = serializeDecimals(rawProducts)
 
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4 sm:px-6 lg:px-8">
