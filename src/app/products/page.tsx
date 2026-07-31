@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma"
 import { ProductCatalogClient } from "./product-catalog-client"
 
 export default async function ProductsPage() {
-  const [products, categories, applicationAreas] = await Promise.all([
+  const [rawProducts, categories, applicationAreas] = await Promise.all([
     prisma.product.findMany({
       select: {
         id: true,
@@ -31,6 +31,15 @@ export default async function ProductsPage() {
       select: { id: true, name: true, slug: true },
     }),
   ])
+
+  // Convert Prisma Decimal objects inside tieredPrices to standard numbers
+  const products = rawProducts.map((product) => ({
+    ...product,
+    tieredPrices: product.tieredPrices.map((tier) => ({
+      ...tier,
+      price: Number(tier.price),
+    })),
+  }))
 
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4 sm:px-6 lg:px-8">

@@ -1,31 +1,35 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useTransition } from "react"
-import Link from "next/link"
-import { ShoppingBag, X, Trash2, ArrowRight, AlertCircle } from "lucide-react"
-import { getCart, updateCartItemQuantity, removeFromCart } from "@/app/actions/cart"
+import { useState, useEffect, useTransition } from "react";
+import Link from "next/link";
+import { ShoppingBag, X, Trash2, ArrowRight, AlertCircle } from "lucide-react";
+import {
+  getCart,
+  updateCartItemQuantity,
+  removeFromCart,
+} from "@/app/actions/cart";
 
 type CartItem = {
-  id: string
-  productId: string
-  productName: string
-  productSlug: string
-  quantity: number
-  unitPrice: number
-  totalPrice: number
-  appliedTier: number | null
-}
+  id: string;
+  productId: string;
+  productName: string;
+  productSlug: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  appliedTier: number | null;
+};
 
 type CartData = {
-  items: CartItem[]
-  subtotal: number
-  totalItems: number
-}
+  items: CartItem[];
+  subtotal: number;
+  totalItems: number;
+};
 
 type Props = {
-  isOpen: boolean
-  onClose: () => void
-}
+  isOpen: boolean;
+  onClose: () => void;
+};
 
 function CartSheetItem({
   item,
@@ -34,30 +38,30 @@ function CartSheetItem({
   onRemove,
   onClose,
 }: {
-  item: CartItem
-  isPending: boolean
-  onQuantityChange: (cartItemId: string, newQty: number) => void
-  onRemove: (cartItemId: string) => void
-  onClose: () => void
+  item: CartItem;
+  isPending: boolean;
+  onQuantityChange: (cartItemId: string, newQty: number) => void;
+  onRemove: (cartItemId: string) => void;
+  onClose: () => void;
 }) {
-  const [prevServerQty, setPrevServerQty] = useState(item.quantity)
-  const [localQty, setLocalQty] = useState<string>(item.quantity.toString())
+  const [prevServerQty, setPrevServerQty] = useState(item.quantity);
+  const [localQty, setLocalQty] = useState<string>(item.quantity.toString());
 
   if (prevServerQty !== item.quantity) {
-    setPrevServerQty(item.quantity)
-    setLocalQty(item.quantity.toString())
+    setPrevServerQty(item.quantity);
+    setLocalQty(item.quantity.toString());
   }
 
   const commitQuantity = (val: string) => {
-    let parsed = parseInt(val, 10)
+    let parsed = parseInt(val, 10);
     if (isNaN(parsed) || parsed < 1) {
-      parsed = 1
+      parsed = 1;
     }
-    setLocalQty(parsed.toString())
+    setLocalQty(parsed.toString());
     if (parsed !== item.quantity) {
-      onQuantityChange(item.id, parsed)
+      onQuantityChange(item.id, parsed);
     }
-  }
+  };
 
   return (
     <div className="flex items-center justify-between border border-gray-100 rounded-xl p-4 bg-gray-50/50">
@@ -98,7 +102,7 @@ function CartSheetItem({
             onBlur={(e) => commitQuantity(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
-                e.currentTarget.blur()
+                e.currentTarget.blur();
               }
             }}
             className="w-12 text-center text-xs font-mono font-bold text-gray-900 bg-transparent focus:outline-none focus:bg-amber-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none border-x border-gray-200 py-1"
@@ -123,63 +127,67 @@ function CartSheetItem({
         </button>
       </div>
     </div>
-  )
+  );
 }
 
 export function CartSheet({ isOpen, onClose }: Props) {
-  const [cart, setCart] = useState<CartData>({ items: [], subtotal: 0, totalItems: 0 })
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [isPending, startTransition] = useTransition()
+  const [cart, setCart] = useState<CartData>({
+    items: [],
+    subtotal: 0,
+    totalItems: 0,
+  });
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen) return;
 
-    let isSubscribed = true
+    let isSubscribed = true;
 
     getCart()
       .then((data) => {
         if (isSubscribed) {
-          setCart(data)
-          setErrorMessage(null)
+          setCart(data);
+          setErrorMessage(null);
         }
       })
       .catch((err) => {
-        console.error("Failed to load cart data:", err)
-        if (isSubscribed) setErrorMessage("Unable to load cart.")
-      })
+        console.error("Failed to load cart data:", err);
+        if (isSubscribed) setErrorMessage("Unable to load cart.");
+      });
 
     return () => {
-      isSubscribed = false
-    }
-  }, [isOpen])
+      isSubscribed = false;
+    };
+  }, [isOpen]);
 
   const handleQuantityChange = (cartItemId: string, newQty: number) => {
-    setErrorMessage(null)
+    setErrorMessage(null);
     startTransition(async () => {
-      const result = await updateCartItemQuantity(cartItemId, newQty)
+      const result = await updateCartItemQuantity(cartItemId, newQty);
       if (!result.success) {
-        setErrorMessage(result.error || "Failed to update quantity.")
-        return
+        setErrorMessage(result.error || "Failed to update quantity.");
+        return;
       }
-      const data = await getCart()
-      setCart(data)
-    })
-  }
+      const data = await getCart();
+      setCart(data);
+    });
+  };
 
   const handleRemove = (cartItemId: string) => {
-    setErrorMessage(null)
+    setErrorMessage(null);
     startTransition(async () => {
-      const result = await removeFromCart(cartItemId)
+      const result = await removeFromCart(cartItemId);
       if (!result.success) {
-        setErrorMessage(result.error || "Failed to remove item.")
-        return
+        setErrorMessage(result.error || "Failed to remove item.");
+        return;
       }
-      const data = await getCart()
-      setCart(data)
-    })
-  }
+      const data = await getCart();
+      setCart(data);
+    });
+  };
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
@@ -221,7 +229,9 @@ export function CartSheet({ isOpen, onClose }: Props) {
             {cart.items.length === 0 ? (
               <div className="text-center py-12 text-gray-500 space-y-3">
                 <ShoppingBag className="h-12 w-12 text-gray-300 mx-auto" />
-                <p className="text-sm font-semibold">Your cart is currently empty</p>
+                <p className="text-sm font-semibold">
+                  Your cart is currently empty
+                </p>
                 <button
                   onClick={onClose}
                   className="text-xs font-bold text-amber-600 hover:underline"
@@ -259,7 +269,7 @@ export function CartSheet({ isOpen, onClose }: Props) {
               </p>
 
               <Link
-                href="/cart"
+                href="/checkout"
                 onClick={onClose}
                 className="w-full flex items-center justify-center gap-2 text-xs font-bold text-black bg-amber-500 hover:bg-amber-600 py-3 rounded-xl transition shadow-sm"
               >
@@ -270,5 +280,5 @@ export function CartSheet({ isOpen, onClose }: Props) {
         </div>
       </div>
     </div>
-  )
+  );
 }
