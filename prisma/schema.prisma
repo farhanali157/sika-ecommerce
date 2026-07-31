@@ -12,6 +12,13 @@ enum Role {
   ADMIN
 }
 
+enum ProductStatus {
+  IN_STOCK
+  OUT_OF_STOCK
+  DISCONTINUED
+  BACKORDER
+}
+
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
@@ -72,10 +79,17 @@ model Product {
   sdsUrl           String?
   categoryId       String
   category         Category          @relation(fields: [categoryId], references: [id])
+  
+  // NEW ADMIN FIELDS
+  status           ProductStatus     @default(IN_STOCK)
+  discountPercent  Float?            @default(0)
+  isFeatured       Boolean           @default(false)
+  isArchived       Boolean           @default(false)
+
   applicationAreas ApplicationArea[]
   tieredPrices     TieredPrice[]
   orderItems       OrderItem[]
-  cartItems        CartItem[]        // <-- Back-relation to CartItem
+  cartItems        CartItem[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 }

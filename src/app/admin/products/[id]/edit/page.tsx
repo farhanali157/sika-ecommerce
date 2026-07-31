@@ -25,7 +25,6 @@ export default async function EditProductPage({ params }: Props) {
     notFound()
   }
 
-  // Convert Prisma Decimal objects to plain JS numbers for Client Component serialization
   const product = {
     ...rawProduct,
     tieredPrices: rawProduct.tieredPrices.map((tp) => ({

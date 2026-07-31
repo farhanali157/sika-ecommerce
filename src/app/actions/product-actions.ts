@@ -18,6 +18,9 @@ const productSchema = z.object({
   retailPrice: z.number().positive("Retail price must be greater than 0"),
   b2bPrice: z.number().positive("B2B price must be greater than 0").optional(),
   applicationAreaIds: z.array(z.string()).optional(),
+  discountPercent: z.number().min(0).max(100).optional(),
+  isFeatured: z.boolean().optional(),
+  status: z.enum(["IN_STOCK", "OUT_OF_STOCK", "DISCONTINUED", "BACKORDER"]).optional(),
 })
 
 export async function createProductAction(formData: unknown) {
@@ -34,7 +37,6 @@ export async function createProductAction(formData: unknown) {
 
   const data = result.data
 
-  // Safe rounding to 2 decimal places to prevent floating point drift
   const retailPrice = Math.round(data.retailPrice * 100) / 100
   const b2bPrice = data.b2bPrice ? Math.round(data.b2bPrice * 100) / 100 : undefined
 
@@ -58,6 +60,9 @@ export async function createProductAction(formData: unknown) {
         images: data.images,
         tdsUrl: data.tdsUrl || null,
         sdsUrl: data.sdsUrl || null,
+        discountPercent: data.discountPercent ?? 0,
+        isFeatured: data.isFeatured ?? false,
+        status: data.status ?? "IN_STOCK",
         applicationAreas: data.applicationAreaIds?.length
           ? { connect: data.applicationAreaIds.map((id: string) => ({ id })) }
           : undefined,
@@ -95,7 +100,6 @@ export async function updateProductAction(id: string, formData: unknown) {
 
   const data = result.data
 
-  // Safe rounding to 2 decimal places to prevent floating point drift
   const retailPrice = Math.round(data.retailPrice * 100) / 100
   const b2bPrice = data.b2bPrice ? Math.round(data.b2bPrice * 100) / 100 : undefined
 
@@ -133,6 +137,9 @@ export async function updateProductAction(id: string, formData: unknown) {
           images: data.images,
           tdsUrl: data.tdsUrl || null,
           sdsUrl: data.sdsUrl || null,
+          discountPercent: data.discountPercent ?? 0,
+          isFeatured: data.isFeatured ?? false,
+          status: data.status ?? "IN_STOCK",
           applicationAreas: {
             set: data.applicationAreaIds?.map((areaId: string) => ({ id: areaId })) || [],
           },
@@ -155,5 +162,66 @@ export async function updateProductAction(id: string, formData: unknown) {
   } catch (err) {
     console.error("[UPDATE_PRODUCT_ERROR]", err)
     return { success: false, error: "Database error updating product" }
+  }
+}
+
+export async function updateProductStatusAction(
+  id: string,
+  status: "IN_STOCK" | "OUT_OF_STOCK" | "DISCONTINUED" | "BACKORDER"
+) {
+  const session = await auth()
+  if (!session?.user || session.user.role !== "ADMIN") {
+    return { success: false, error: "Unauthorized" }
+  }
+
+  try {
+    await prisma.product.update({
+      where: { id },
+      data: { status },
+    })
+    revalidatePath("/admin/products")
+    revalidatePath("/products")
+    return { success: true }
+  } catch {
+    return { success: false, error: "Failed to update status" }
+  }
+}
+
+export async function toggleProductFeaturedAction(id: string, isFeatured: boolean) {
+  const session = await auth()
+  if (!session?.user || session.user.role !== "ADMIN") {
+    return { success: false, error: "Unauthorized" }
+  }
+
+  try {
+    await prisma.product.update({
+      where: { id },
+      data: { isFeatured },
+    })
+    revalidatePath("/admin/products")
+    revalidatePath("/")
+    return { success: true }
+  } catch {
+    return { success: false, error: "Failed to toggle featured status" }
+  }
+}
+
+export async function deleteProductAction(id: string) {
+  const session = await auth()
+  if (!session?.user || session.user.role !== "ADMIN") {
+    return { success: false, error: "Unauthorized" }
+  }
+
+  try {
+    await prisma.product.update({
+      where: { id },
+      data: { isArchived: true },
+    })
+    revalidatePath("/admin/products")
+    revalidatePath("/products")
+    revalidatePath("/")
+    return { success: true }
+  } catch {
+    return { success: false, error: "Failed to archive product" }
   }
 }

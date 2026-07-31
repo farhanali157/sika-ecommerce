@@ -19,6 +19,9 @@ type ProductDetails = {
   images: string[]
   tdsUrl: string | null
   sdsUrl: string | null
+  status?: "IN_STOCK" | "OUT_OF_STOCK" | "DISCONTINUED" | "BACKORDER"
+  discountPercent?: number | null
+  isFeatured?: boolean
   applicationAreas: { id: string }[]
   tieredPrices: { minQty: number; price: number }[]
 }
@@ -52,6 +55,20 @@ export function ProductEditFormClient({
   const [categoryId, setCategoryId] = useState(product.categoryId)
   const [retailPrice, setRetailPrice] = useState(initialRetail)
   const [b2bPrice, setB2bPrice] = useState(initialB2b)
+
+  // New admin status state variables
+  const [discountPercent, setDiscountPercent] = useState(
+    product.discountPercent !== undefined && product.discountPercent !== null
+      ? String(product.discountPercent)
+      : "0"
+  )
+  const [status, setStatus] = useState<"IN_STOCK" | "OUT_OF_STOCK" | "DISCONTINUED" | "BACKORDER">(
+    product.status || "IN_STOCK"
+  )
+  const [isFeatured, setIsFeatured] = useState<boolean>(
+    product.isFeatured || false
+  )
+
   const [tdsUrl, setTdsUrl] = useState(product.tdsUrl || "")
   const [sdsUrl, setSdsUrl] = useState(product.sdsUrl || "")
 
@@ -99,6 +116,9 @@ export function ProductEditFormClient({
       categoryId,
       retailPrice: parseFloat(retailPrice),
       b2bPrice: b2bPrice ? parseFloat(b2bPrice) : undefined,
+      discountPercent: discountPercent ? parseFloat(discountPercent) : 0,
+      status,
+      isFeatured,
       images: validImages,
       tdsUrl: tdsUrl || undefined,
       sdsUrl: sdsUrl || undefined,
@@ -220,12 +240,12 @@ export function ProductEditFormClient({
         </div>
       </div>
 
-      {/* Pricing & Category */}
+      {/* Pricing & Store Settings */}
       <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
         <h2 className="text-sm font-bold uppercase tracking-wider text-gray-900 border-b pb-2">
-          Pricing & Category
+          Pricing & Store Settings
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
               Category *
@@ -268,6 +288,52 @@ export function ProductEditFormClient({
               onChange={(e) => setB2bPrice(e.target.value)}
               className="w-full p-2.5 text-sm rounded-lg border border-gray-300 focus:outline-none focus:border-amber-500 font-bold"
             />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+              Discount (%)
+            </label>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              value={discountPercent}
+              onChange={(e) => setDiscountPercent(e.target.value)}
+              placeholder="e.g. 15"
+              className="w-full p-2.5 text-sm rounded-lg border border-gray-300 focus:outline-none focus:border-amber-500 font-bold"
+            />
+          </div>
+        </div>
+
+        {/* Stock Status & Homepage Feature Toggle */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-gray-100">
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+              Stock Availability Status *
+            </label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as "IN_STOCK" | "OUT_OF_STOCK" | "DISCONTINUED" | "BACKORDER")}
+              className="w-full p-2.5 text-sm rounded-lg border border-gray-300 bg-white focus:outline-none focus:border-amber-500 font-semibold"
+            >
+              <option value="IN_STOCK">In Stock</option>
+              <option value="OUT_OF_STOCK">Out of Stock</option>
+              <option value="BACKORDER">Backorder</option>
+              <option value="DISCONTINUED">Discontinued</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-3 pt-5">
+            <input
+              type="checkbox"
+              id="isFeatured"
+              checked={isFeatured}
+              onChange={(e) => setIsFeatured(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400"
+            />
+            <label htmlFor="isFeatured" className="text-xs font-bold uppercase text-gray-900 cursor-pointer">
+              Feature on Homepage Showcase
+            </label>
           </div>
         </div>
 

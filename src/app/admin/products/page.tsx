@@ -1,10 +1,12 @@
 import Link from "next/link"
 import Image from "next/image"
 import { prisma } from "@/lib/prisma"
-import { Plus, Package, ExternalLink, Edit } from "lucide-react"
+import { Plus, Package } from "lucide-react"
+import { ProductRowActions } from "./product-row-actions"
 
 export default async function AdminProductsPage() {
   const products = await prisma.product.findMany({
+    where: { isArchived: false },
     select: {
       id: true,
       name: true,
@@ -12,6 +14,9 @@ export default async function AdminProductsPage() {
       sku: true,
       packSize: true,
       images: true,
+      status: true,
+      discountPercent: true,
+      isFeatured: true,
       category: { select: { name: true } },
       tieredPrices: { select: { minQty: true, price: true }, orderBy: { minQty: "asc" } },
     },
@@ -28,7 +33,7 @@ export default async function AdminProductsPage() {
               Product Inventory Manager
             </h1>
             <p className="text-xs text-gray-500 mt-1">
-              Manage product listings, pricing tiers, and datasheets across the store catalog.
+              Manage product listings, pricing tiers, discounts, stock availability, and homepage features.
             </p>
           </div>
           <Link
@@ -49,8 +54,8 @@ export default async function AdminProductsPage() {
                   <th className="py-3.5 px-4">SKU</th>
                   <th className="py-3.5 px-4">Category</th>
                   <th className="py-3.5 px-4">Pack Size</th>
-                  <th className="py-3.5 px-4">Retail Price</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
+                  <th className="py-3.5 px-4">Price</th>
+                  <th className="py-3.5 px-4 text-right">Status & Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -58,6 +63,7 @@ export default async function AdminProductsPage() {
                   const rawPrice = product.tieredPrices.find((p) => p.minQty === 1)?.price ?? 0
                   const retailPrice = typeof rawPrice === "number" ? rawPrice : Number(rawPrice)
                   const mainImage = product.images?.[0] || null
+                  const discount = product.discountPercent ?? 0
 
                   return (
                     <tr key={product.id} className="hover:bg-amber-50/40 transition">
@@ -65,12 +71,7 @@ export default async function AdminProductsPage() {
                         <div className="flex items-center gap-3">
                           <div className="relative h-12 w-12 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
                             {mainImage ? (
-                              <Image
-                                src={mainImage}
-                                alt={product.name}
-                                fill
-                                className="object-cover"
-                              />
+                              <Image src={mainImage} alt={product.name} fill className="object-cover" />
                             ) : (
                               <Package className="h-5 w-5 text-gray-400" />
                             )}
@@ -92,27 +93,23 @@ export default async function AdminProductsPage() {
                       <td className="py-3 px-4 text-xs font-medium text-gray-600">
                         {product.packSize}
                       </td>
-                      <td className="py-3 px-4 font-black text-gray-900">
-                        Rs. {retailPrice.toLocaleString()}
+                      <td className="py-3 px-4">
+                        <div className="font-black text-gray-900">
+                          Rs. {retailPrice.toLocaleString()}
+                        </div>
+                        {discount > 0 && (
+                          <span className="text-[10px] font-extrabold text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 inline-block">
+                            -{discount}% OFF
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Link
-                            href={`/product/${product.slug}`}
-                            target="_blank"
-                            className="p-1.5 text-gray-500 hover:text-amber-600 transition"
-                            title="View Live Product Page"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </Link>
-                          <Link
-                            href={`/admin/products/${product.id}/edit`}
-                            className="p-1.5 text-gray-500 hover:text-blue-600 transition"
-                            title="Edit Product"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Link>
-                        </div>
+                        <ProductRowActions
+                          productId={product.id}
+                          slug={product.slug}
+                          initialStatus={product.status}
+                          initialFeatured={product.isFeatured}
+                        />
                       </td>
                     </tr>
                   )
