@@ -5,37 +5,46 @@ import { prisma } from "@/lib/prisma"
 import { getOrCreateCart } from "@/app/actions/cart"
 import { calculateCartSubtotal } from "@/lib/cart-engine"
 import { sendOrderConfirmationEmail } from "@/lib/email"
+import { calculateShippingFee } from "@/lib/pricing-constants"
 import { after } from "next/server"
+import { z } from "zod"
 
-type CreateOrderInput = {
-  customerName: string
-  customerEmail: string
-  customerPhone: string
-  shippingAddress: string
-  city: string
-  notes?: string
-}
+const createOrderSchema = z.object({
+  customerName: z.string().trim().min(2, "Name must be at least 2 characters").max(120),
+  customerEmail: z.string().trim().email("Invalid email address").max(254),
+  customerPhone: z.string().trim().min(7, "Phone number is too short").max(20),
+  shippingAddress: z.string().trim().min(5, "Address is too short").max(300),
+  city: z.enum(["Lahore", "Karachi", "Islamabad", "Rawalpindi", "Faisalabad", "Multan"]),
+  ntnNumber: z.string().trim().max(30).optional(),
+  notes: z.string().trim().max(500).optional(),
+})
+
+type CreateOrderInput = z.infer<typeof createOrderSchema>
 
 export async function createOrder(input: CreateOrderInput) {
   try {
+    // 1. Zod Server-side Validation
+    const parsed = createOrderSchema.safeParse(input)
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message ?? "Invalid order details provided.",
+      }
+    }
+    const validatedData = parsed.data
+
     const session = await auth()
     const sessionUserId = session?.user?.id
     const sessionEmail = session?.user?.email?.toLowerCase().trim()
     const userRole = session?.user?.role
 
-    console.log("[createOrder] Initializing checkout for:", {
-      isGuest: !sessionUserId,
-      emailMasked: sessionEmail ? `${sessionEmail.slice(0, 3)}***` : `${input.customerEmail.slice(0, 3)}***`,
-    })
-
     const activeCart = await getOrCreateCart()
 
     // Execute Read, Price Snapshot, Order Creation, and Cart Wipe inside ONE atomic Transaction
     const result = await prisma.$transaction(async (tx) => {
-      // 1. ROW-LEVEL LOCK (FOR UPDATE): Prevents concurrent transaction race conditions across serverless instances
+      // Row Lock
       await tx.$executeRaw`SELECT id FROM "Cart" WHERE id = ${activeCart.id} FOR UPDATE`
 
-      // 2. READ INSIDE TX (Now strictly synchronized)
       const dbCart = await tx.cart.findUnique({
         where: { id: activeCart.id },
         include: {
@@ -53,12 +62,10 @@ export async function createOrder(input: CreateOrderInput) {
         },
       })
 
-      // Idempotency / Double-Submit Guard
       if (!dbCart || dbCart.items.length === 0) {
         throw new Error("Your cart is empty or this order has already been processed.")
       }
 
-      // 3. Resolve User Ownership
       let orderUserId: string | null = sessionUserId || null
 
       if (!orderUserId && sessionEmail) {
@@ -70,7 +77,6 @@ export async function createOrder(input: CreateOrderInput) {
         }
       }
 
-      // 4. Calculate Cart Subtotal inside isolation boundary
       const cartSummary = calculateCartSubtotal(dbCart.items, userRole)
 
       if (cartSummary.items.length === 0) {
@@ -78,10 +84,9 @@ export async function createOrder(input: CreateOrderInput) {
       }
 
       const subtotal = cartSummary.subtotal
-      const shippingFee = subtotal > 50000 ? 0 : 1500
+      const shippingFee = calculateShippingFee(subtotal)
       const grandTotal = subtotal + shippingFee
 
-      // 5. Create Order with complete pricing snapshot
       const newOrder = await tx.order.create({
         data: {
           userId: orderUserId ?? undefined,
@@ -89,11 +94,11 @@ export async function createOrder(input: CreateOrderInput) {
           subtotal: subtotal,
           shippingFee: shippingFee,
           totalAmount: grandTotal,
-          customerName: input.customerName,
-          customerEmail: input.customerEmail.toLowerCase().trim(),
-          customerPhone: input.customerPhone,
-          shippingAddress: `${input.shippingAddress}, ${input.city}`,
-          notes: input.notes,
+          customerName: validatedData.customerName,
+          customerEmail: validatedData.customerEmail.toLowerCase().trim(),
+          customerPhone: validatedData.customerPhone,
+          shippingAddress: `${validatedData.shippingAddress}, ${validatedData.city}`,
+          notes: validatedData.notes,
           items: {
             create: cartSummary.items.map((item) => ({
               productId: item.productId,
@@ -113,7 +118,6 @@ export async function createOrder(input: CreateOrderInput) {
         },
       })
 
-      // 6. Atomic Cart Wipe
       await tx.cartItem.deleteMany({
         where: { cartId: activeCart.id },
       })
@@ -121,13 +125,11 @@ export async function createOrder(input: CreateOrderInput) {
       return newOrder
     })
 
-    // Scheduled via Next.js after() to guarantee completion in Vercel serverless runtimes
-    // without delaying the client's HTTP response boundary
     after(() => {
       sendOrderConfirmationEmail({
         orderId: result.id,
-        customerName: result.customerName ?? input.customerName,
-        customerEmail: result.customerEmail ?? input.customerEmail,
+        customerName: result.customerName ?? validatedData.customerName,
+        customerEmail: result.customerEmail ?? validatedData.customerEmail,
         totalAmount: Number(result.totalAmount),
         status: result.status,
         items: result.items.map((item) => ({

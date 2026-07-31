@@ -2,6 +2,7 @@ import Link from "next/link"
 import { ShoppingBag, ArrowLeft, ArrowRight, ShieldCheck, Truck, CreditCard } from "lucide-react"
 import { getCart } from "@/app/actions/cart"
 import { CartItemRow } from "@/app/cart/cart-item-row"
+import { calculateShippingFee, FREE_SHIPPING_THRESHOLD } from "@/lib/pricing-constants"
 
 export const dynamic = "force-dynamic"
 
@@ -12,6 +13,9 @@ export const metadata = {
 
 export default async function CartPage() {
   const cart = await getCart()
+
+  const shippingFee = calculateShippingFee(cart.subtotal)
+  const grandTotal = cart.subtotal + shippingFee
 
   return (
     <div className="min-h-screen bg-gray-50/50 py-10">
@@ -106,20 +110,32 @@ export default async function CartPage() {
                     </span>
                   </div>
 
-                  <div className="flex justify-between text-gray-600">
+                  <div className="flex justify-between items-center text-gray-600">
                     <span>Estimated Freight / Shipping</span>
-                    <span className="text-gray-400 italic">Calculated at checkout</span>
+                    <span className="font-mono font-semibold text-gray-900">
+                      {shippingFee === 0 ? (
+                        <span className="text-emerald-600 font-bold">FREE</span>
+                      ) : (
+                        `PKR ${shippingFee.toLocaleString()}`
+                      )}
+                    </span>
                   </div>
 
+                  {cart.subtotal < FREE_SHIPPING_THRESHOLD && (
+                    <p className="text-[10px] text-amber-700 bg-amber-50 p-2 rounded border border-amber-200">
+                      Add PKR {(FREE_SHIPPING_THRESHOLD - cart.subtotal).toLocaleString()} more to qualify for Free Shipping!
+                    </p>
+                  )}
+
                   <div className="flex justify-between text-gray-600">
-                    <span>Sales Tax (GST)</span>
-                    <span className="text-gray-400 italic">Included / Itemized</span>
+                    <span>Sales Tax (18% GST)</span>
+                    <span className="text-gray-500 italic">Itemized on GST Invoice</span>
                   </div>
 
                   <div className="border-t border-gray-100 pt-3 flex justify-between items-baseline">
-                    <span className="text-sm font-bold text-gray-900">Grand Total</span>
+                    <span className="text-sm font-bold text-gray-900">Estimated Grand Total</span>
                     <span className="text-xl font-black text-gray-900">
-                      PKR {cart.subtotal.toLocaleString()}
+                      PKR {grandTotal.toLocaleString()}
                     </span>
                   </div>
                 </div>

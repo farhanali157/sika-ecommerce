@@ -18,6 +18,7 @@ export type CartItemWithProduct = {
   product: {
     name: string
     slug: string
+    discountPercent?: number | null
     tieredPrices: TierPriceInput[]
   }
 }
@@ -25,37 +26,42 @@ export type CartItemWithProduct = {
 export function calculateItemPrice(
   tieredPrices: TierPriceInput[],
   quantity: number,
-  isB2B: boolean
+  isB2B: boolean,
+  discountPercent?: number | null
 ): CalculatedItemPrice {
   if (!tieredPrices || tieredPrices.length === 0) {
     return { unitPrice: 0, totalPrice: 0, appliedTier: null }
   }
 
-  // Safely normalize Decimal or number inputs to JavaScript numbers
+  // Safely normalize Decimal or number inputs
   const normalizedTiers = tieredPrices.map((tier) => ({
     minQty: tier.minQty,
     price: typeof tier.price === "number" ? tier.price : Number(tier.price),
   }))
 
-  // Sort tiers descending to check highest quantity threshold first
   const sortedTiers = [...normalizedTiers].sort((a, b) => b.minQty - a.minQty)
 
-  // Retail customers always receive base price (lowest minQty tier)
+  let rawUnitPrice = 0
+  let appliedTier: number | null = null
+
   if (!isB2B) {
     const baseRetailTier = sortedTiers[sortedTiers.length - 1]
-    const basePrice = baseRetailTier?.price ?? 0
-    return { unitPrice: basePrice, totalPrice: basePrice * quantity, appliedTier: null }
+    rawUnitPrice = baseRetailTier?.price ?? 0
+  } else {
+    const matchingTier = sortedTiers.find((t) => quantity >= t.minQty)
+    const lowestTier = sortedTiers[sortedTiers.length - 1]
+    rawUnitPrice = matchingTier?.price ?? lowestTier?.price ?? 0
+    appliedTier = matchingTier ? matchingTier.minQty : null
   }
 
-  // B2B users receive the highest tier matched by their quantity
-  const matchingTier = sortedTiers.find((t) => quantity >= t.minQty)
-  const lowestTier = sortedTiers[sortedTiers.length - 1]
-  const activePrice = matchingTier?.price ?? lowestTier?.price ?? 0
+  // Apply discount percent if set by admin
+  const discountMultiplier = 1 - (discountPercent ?? 0) / 100
+  const finalUnitPrice = Math.round(rawUnitPrice * discountMultiplier)
 
   return {
-    unitPrice: activePrice,
-    totalPrice: activePrice * quantity,
-    appliedTier: matchingTier ? matchingTier.minQty : null,
+    unitPrice: finalUnitPrice,
+    totalPrice: finalUnitPrice * quantity,
+    appliedTier,
   }
 }
 
@@ -71,7 +77,8 @@ export function calculateCartSubtotal(
     const { unitPrice, totalPrice, appliedTier } = calculateItemPrice(
       item.product.tieredPrices,
       item.quantity,
-      isB2B
+      isB2B,
+      item.product.discountPercent
     )
 
     subtotal += totalPrice

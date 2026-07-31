@@ -28,12 +28,21 @@ export function CheckoutFormClient({ initialCart }: CheckoutFormClientProps) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    customerName: string
+    customerEmail: string
+    customerPhone: string
+    shippingAddress: string
+    city: "Lahore" | "Karachi" | "Islamabad" | "Rawalpindi" | "Faisalabad" | "Multan"
+    ntnNumber?: string
+    notes?: string
+  }>({
     customerName: "",
     customerEmail: "",
     customerPhone: "",
     shippingAddress: "",
     city: "Lahore",
+    ntnNumber: "",
     notes: "",
   })
 
@@ -199,6 +208,23 @@ export function CheckoutFormClient({ initialCart }: CheckoutFormClientProps) {
                     <option value="Multan">Multan</option>
                   </select>
                 </div>
+              </div>
+
+              {/* B2B NTN Tax Number Input */}
+              <div>
+                <label htmlFor="ntnNumber" className="block text-xs font-bold text-gray-700 mb-1">
+                  NTN / Business Tax Number (Optional for B2B Invoicing)
+                </label>
+                <input
+                  id="ntnNumber"
+                  type="text"
+                  name="ntnNumber"
+                  autoComplete="off"
+                  value={formData.ntnNumber}
+                  onChange={handleChange}
+                  placeholder="e.g. 1234567-8"
+                  className="w-full px-3.5 py-2 text-sm border border-gray-300 rounded-xl focus:outline-none focus:border-amber-500 font-mono"
+                />
               </div>
 
               <div>

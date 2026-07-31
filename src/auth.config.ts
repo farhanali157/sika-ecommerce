@@ -40,6 +40,15 @@ export const authConfig = {
         }
       }
 
+      // Protect Customer Account Portal
+      if (pathname.startsWith("/account")) {
+        if (!isLoggedIn) {
+          const loginUrl = new URL("/login", nextUrl)
+          loginUrl.searchParams.set("callbackUrl", pathname)
+          return NextResponse.redirect(loginUrl)
+        }
+      }
+
       return true
     },
   },
