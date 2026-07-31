@@ -155,6 +155,7 @@ model Order {
   customerEmail   String
   customerPhone   String
   shippingAddress String
+  ntnNumber       String?
   notes           String?
   status          OrderStatus @default(PENDING)
   subtotal        Decimal     @default(0) @db.Decimal(12, 2)

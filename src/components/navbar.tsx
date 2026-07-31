@@ -1,19 +1,26 @@
-import Link from "next/link"
-import { Package, Search, Layers, ShoppingBag, Store, Shield } from "lucide-react"
-import { prisma } from "@/lib/prisma"
-import { auth } from "@/auth"
-import { DEMO_CATEGORIES, DEMO_AREAS } from "@/lib/demo-data"
+import Link from "next/link";
+import {
+  Package,
+  Search,
+  Layers,
+  ShoppingBag,
+  Store,
+  Shield,
+} from "lucide-react";
+import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
+import { DEMO_CATEGORIES, DEMO_AREAS } from "@/lib/demo-data";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { NavActions } from "./nav-actions"
+} from "@/components/ui/dropdown-menu";
+import { NavActions } from "./nav-actions";
 
 export async function Navbar() {
-  let categories: { id: string; name: string; slug: string }[] = []
-  let areas: { id: string; name: string; slug: string }[] = []
+  let categories: { id: string; name: string; slug: string }[] = [];
+  let areas: { id: string; name: string; slug: string }[] = [];
 
   try {
     const [fetchedCategories, fetchedAreas] = await Promise.all([
@@ -23,16 +30,20 @@ export async function Navbar() {
       prisma.applicationArea.findMany({
         select: { id: true, name: true, slug: true },
       }),
-    ])
-    categories = fetchedCategories
-    areas = fetchedAreas
+    ]);
+    categories = fetchedCategories;
+    areas = fetchedAreas;
   } catch (error) {
-    console.error("Navbar DB fetch error:", error)
-    categories = DEMO_CATEGORIES.map(({ id, name, slug }) => ({ id, name, slug }))
-    areas = DEMO_AREAS.map(({ id, name, slug }) => ({ id, name, slug }))
+    console.error("Navbar DB fetch error:", error);
+    categories = DEMO_CATEGORIES.map(({ id, name, slug }) => ({
+      id,
+      name,
+      slug,
+    }));
+    areas = DEMO_AREAS.map(({ id, name, slug }) => ({ id, name, slug }));
   }
 
-  const session = await auth()
+  const session = await auth();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white shadow-sm">
@@ -41,8 +52,12 @@ export async function Navbar() {
         <div className="mx-auto max-w-7xl flex justify-between items-center">
           <span>Official Sika® E-Commerce Platform</span>
           <div className="flex gap-4">
-            <a href="mailto:support@sika.com.pk" className="hover:underline">Support</a>
-            <Link href="/products" className="hover:underline">Distributor Finder</Link>
+            <a href="mailto:support@sika.com.pk" className="hover:underline">
+              Support
+            </a>
+            <Link href="/locator" className="hover:underline">
+              Distributor Finder
+            </Link>
           </div>
         </div>
       </div>
@@ -50,7 +65,6 @@ export async function Navbar() {
       {/* Main Navigation Bar */}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-4">
-          
           {/* Logo & Navigation Links */}
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2">
@@ -72,7 +86,10 @@ export async function Navbar() {
               <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-semibold text-gray-700 hover:text-amber-600 transition outline-none">
                 <Package className="h-4 w-4" /> Categories
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48 bg-white border border-gray-200 shadow-md rounded-lg p-1">
+              <DropdownMenuContent
+                align="start"
+                className="w-48 bg-white border border-gray-200 shadow-md rounded-lg p-1"
+              >
                 {categories.map((cat) => (
                   <DropdownMenuItem key={cat.id} asChild>
                     <Link
@@ -91,9 +108,14 @@ export async function Navbar() {
               <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-semibold text-gray-700 hover:text-amber-600 transition outline-none">
                 <Layers className="h-4 w-4" /> Shop by Area
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56 bg-white border border-gray-200 shadow-md rounded-lg p-1">
+              <DropdownMenuContent
+                align="start"
+                className="w-56 bg-white border border-gray-200 shadow-md rounded-lg p-1"
+              >
                 {areas.length === 0 ? (
-                  <div className="px-3 py-2 text-xs text-gray-400">No areas found</div>
+                  <div className="px-3 py-2 text-xs text-gray-400">
+                    No areas found
+                  </div>
                 ) : (
                   areas.map((area) => (
                     <DropdownMenuItem key={area.id} asChild>
@@ -146,9 +168,8 @@ export async function Navbar() {
           <div className="flex items-center gap-4">
             <NavActions session={session} />
           </div>
-
         </div>
       </div>
     </header>
-  )
+  );
 }

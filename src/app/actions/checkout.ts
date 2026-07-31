@@ -101,10 +101,7 @@ export async function createOrder(input: CreateOrderInput) {
       const shippingFee = calculateShippingFee(subtotal);
       const grandTotal = subtotal + shippingFee;
 
-      // Format notes to include NTN if present
-      const combinedNotes = validatedData.ntnNumber
-        ? `[NTN/Tax ID: ${validatedData.ntnNumber}] ${validatedData.notes ?? ""}`.trim()
-        : validatedData.notes;
+     
 
       const newOrder = await tx.order.create({
         data: {
@@ -117,7 +114,8 @@ export async function createOrder(input: CreateOrderInput) {
           customerEmail: validatedData.customerEmail.toLowerCase().trim(),
           customerPhone: validatedData.customerPhone,
           shippingAddress: `${validatedData.shippingAddress}, ${validatedData.city}`,
-          notes: combinedNotes,
+          ntnNumber: validatedData.ntnNumber || null, // <-- Saved directly to its own column
+          notes: validatedData.notes, // <-- Notes are now clean
           items: {
             create: cartSummary.items.map((item) => ({
               productId: item.productId,
