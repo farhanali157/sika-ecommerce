@@ -42,7 +42,7 @@ export default async function AccountOrdersPage() {
             </p>
           </div>
           <Link
-            href="/category/all"
+            href="/products"
             className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-sm"
           >
             Browse Products
