@@ -34,6 +34,10 @@ export async function createProductAction(formData: unknown) {
 
   const data = result.data
 
+  // Safe rounding to 2 decimal places to prevent floating point drift
+  const retailPrice = Math.round(data.retailPrice * 100) / 100
+  const b2bPrice = data.b2bPrice ? Math.round(data.b2bPrice * 100) / 100 : undefined
+
   try {
     const existingSlug = await prisma.product.findUnique({
       where: { slug: data.slug },
@@ -55,12 +59,12 @@ export async function createProductAction(formData: unknown) {
         tdsUrl: data.tdsUrl || null,
         sdsUrl: data.sdsUrl || null,
         applicationAreas: data.applicationAreaIds?.length
-          ? { connect: data.applicationAreaIds.map((id) => ({ id })) }
+          ? { connect: data.applicationAreaIds.map((id: string) => ({ id })) }
           : undefined,
         tieredPrices: {
           create: [
-            { minQty: 1, price: data.retailPrice },
-            ...(data.b2bPrice ? [{ minQty: 10, price: data.b2bPrice }] : []),
+            { minQty: 1, price: retailPrice },
+            ...(b2bPrice ? [{ minQty: 10, price: b2bPrice }] : []),
           ],
         },
       },
@@ -74,5 +78,82 @@ export async function createProductAction(formData: unknown) {
   } catch (err) {
     console.error("[CREATE_PRODUCT_ERROR]", err)
     return { success: false, error: "Database error creating product" }
+  }
+}
+
+export async function updateProductAction(id: string, formData: unknown) {
+  const session = await auth()
+
+  if (!session?.user || session.user.role !== "ADMIN") {
+    return { success: false, error: "Unauthorized access" }
+  }
+
+  const result = productSchema.safeParse(formData)
+  if (!result.success) {
+    return { success: false, error: result.error.flatten().fieldErrors }
+  }
+
+  const data = result.data
+
+  // Safe rounding to 2 decimal places to prevent floating point drift
+  const retailPrice = Math.round(data.retailPrice * 100) / 100
+  const b2bPrice = data.b2bPrice ? Math.round(data.b2bPrice * 100) / 100 : undefined
+
+  try {
+    const existingProduct = await prisma.product.findUnique({
+      where: { id },
+    })
+
+    if (!existingProduct) {
+      return { success: false, error: "Product not found" }
+    }
+
+    if (data.slug !== existingProduct.slug) {
+      const slugCheck = await prisma.product.findUnique({
+        where: { slug: data.slug },
+      })
+      if (slugCheck) {
+        return { success: false, error: { slug: ["A product with this slug already exists"] } }
+      }
+    }
+
+    await prisma.$transaction([
+      prisma.tieredPrice.deleteMany({
+        where: { productId: id },
+      }),
+      prisma.product.update({
+        where: { id },
+        data: {
+          name: data.name,
+          slug: data.slug,
+          sku: data.sku,
+          description: data.description,
+          packSize: data.packSize,
+          categoryId: data.categoryId,
+          images: data.images,
+          tdsUrl: data.tdsUrl || null,
+          sdsUrl: data.sdsUrl || null,
+          applicationAreas: {
+            set: data.applicationAreaIds?.map((areaId: string) => ({ id: areaId })) || [],
+          },
+          tieredPrices: {
+            create: [
+              { minQty: 1, price: retailPrice },
+              ...(b2bPrice ? [{ minQty: 10, price: b2bPrice }] : []),
+            ],
+          },
+        },
+      }),
+    ])
+
+    revalidatePath("/products")
+    revalidatePath(`/product/${data.slug}`)
+    revalidatePath("/admin/products")
+    revalidatePath("/")
+
+    return { success: true }
+  } catch (err) {
+    console.error("[UPDATE_PRODUCT_ERROR]", err)
+    return { success: false, error: "Database error updating product" }
   }
 }

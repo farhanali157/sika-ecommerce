@@ -1,7 +1,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { prisma } from "@/lib/prisma"
-import { Plus, Package, ExternalLink } from "lucide-react"
+import { Plus, Package, ExternalLink, Edit } from "lucide-react"
 
 export default async function AdminProductsPage() {
   const products = await prisma.product.findMany({
@@ -96,14 +96,23 @@ export default async function AdminProductsPage() {
                         Rs. {retailPrice.toLocaleString()}
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <Link
-                          href={`/product/${product.slug}`}
-                          target="_blank"
-                          className="p-1.5 text-gray-500 hover:text-amber-600 transition inline-block"
-                          title="View Live Product Page"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </Link>
+                        <div className="flex items-center justify-end gap-2">
+                          <Link
+                            href={`/product/${product.slug}`}
+                            target="_blank"
+                            className="p-1.5 text-gray-500 hover:text-amber-600 transition"
+                            title="View Live Product Page"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Link>
+                          <Link
+                            href={`/admin/products/${product.id}/edit`}
+                            className="p-1.5 text-gray-500 hover:text-blue-600 transition"
+                            title="Edit Product"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   )
