@@ -34,9 +34,16 @@ export const authConfig = {
         }
       }
 
-      // Protect B2B Portal (Allow B2B, ADMIN, and SUPER_ADMIN)
+      // Protect B2B Portal
       if (pathname.startsWith("/b2b")) {
         if (!isLoggedIn) return false
+        
+        // EXCEPTION: Allow any logged-in user to access the application status/form page
+        if (pathname.startsWith("/b2b/status")) {
+          return true
+        }
+
+        // Restrict all other /b2b routes to actual approved B2B users or admins
         if (userRole !== "B2B" && userRole !== "ADMIN" && userRole !== "SUPER_ADMIN") {
           return NextResponse.redirect(new URL("/", nextUrl))
         }

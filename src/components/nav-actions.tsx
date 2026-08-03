@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { User, LogOut, Shield, ShoppingBag } from "lucide-react"
+import { User, LogOut, Shield, ShoppingBag, Building2 } from "lucide-react"
 import { signOut } from "next-auth/react"
 import type { Session } from "next-auth"
 import { CartSheet } from "@/components/cart-sheet"
@@ -42,12 +42,20 @@ export function NavActions({ session }: NavActionsProps) {
 
       {/* User Auth Section */}
       {!session?.user ? (
-        <Link
-          href="/login"
-          className="flex items-center gap-1.5 text-xs font-bold text-gray-800 bg-amber-500 hover:bg-amber-600 px-3 py-1.5 rounded transition"
-        >
-          <User className="h-4 w-4" /> Sign In
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/login"
+            className="text-xs font-bold text-gray-700 hover:text-amber-600 px-2 py-1.5 transition"
+          >
+            Sign In
+          </Link>
+          <Link
+            href="/signup"
+            className="flex items-center gap-1.5 text-xs font-bold text-gray-900 bg-amber-500 hover:bg-amber-600 px-3 py-1.5 rounded-lg transition shadow-sm"
+          >
+            <User className="h-4 w-4" /> Sign Up
+          </Link>
+        </div>
       ) : (
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-amber-600 transition outline-none">
@@ -74,9 +82,27 @@ export function NavActions({ session }: NavActionsProps) {
               </DropdownMenuItem>
             )}
 
+            {/* SHOW B2B PORTAL FOR CONTRACTORS & RETAIL CUSTOMERS */}
+            {(userRole === "B2B" || userRole === "CUSTOMER") && (
+              <DropdownMenuItem
+                onClick={() => router.push("/b2b/status")}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg transition cursor-pointer mb-1"
+              >
+                <Building2 className="h-4 w-4 text-amber-500" /> B2B Partner Portal
+              </DropdownMenuItem>
+            )}
+
+            {/* STANDARD ACCOUNT SETTINGS FOR EVERYONE */}
+            <DropdownMenuItem
+              onClick={() => router.push("/account")}
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg transition cursor-pointer mb-1"
+            >
+              <User className="h-4 w-4 text-amber-500" /> My Account
+            </DropdownMenuItem>
+
             <DropdownMenuItem
               onClick={() => signOut({ callbackUrl: "/" })}
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer mt-1 border-t border-gray-50 pt-2"
             >
               <LogOut className="h-4 w-4" /> Sign Out
             </DropdownMenuItem>

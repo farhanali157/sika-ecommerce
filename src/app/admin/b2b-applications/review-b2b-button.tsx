@@ -23,6 +23,7 @@ export function ReviewB2BButtons({ applicationId, currentStatus }: ReviewProps) 
     })
   }
 
+  // 1. Handle APPROVED state
   if (currentStatus === ApplicationStatus.APPROVED) {
     return (
       <span className="inline-flex items-center gap-1 text-emerald-600 font-bold text-xs bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
@@ -31,6 +32,16 @@ export function ReviewB2BButtons({ applicationId, currentStatus }: ReviewProps) 
     )
   }
 
+  // 2. Handle REJECTED state
+  if (currentStatus === ApplicationStatus.REJECTED) {
+    return (
+      <span className="inline-flex items-center gap-1 text-rose-600 font-bold text-xs bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200">
+        <XCircle className="h-3.5 w-3.5" /> Rejected
+      </span>
+    )
+  }
+
+  // 3. Default state (PENDING)
   return (
     <div className="flex flex-col gap-2">
       <input

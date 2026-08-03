@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { PrismaClient, Role, OrderStatus } from "@prisma/client";
+import { PrismaClient, Role, OrderStatus, ApplicationStatus } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
 import bcrypt from "bcryptjs";
@@ -14,18 +14,21 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  console.log("Seeding database...");
+  console.log("🌱 Seeding database...");
 
   const hashedPassword = await bcrypt.hash("Admin@123456", 10);
 
-  // 1. Seed Admin User
+  // 1. Seed Super Admin User
   await prisma.user.upsert({
     where: { email: "admin@sika.pk" },
-    update: { passwordHash: hashedPassword },
+    update: { 
+      passwordHash: hashedPassword,
+      role: Role.SUPER_ADMIN,
+    },
     create: {
       email: "admin@sika.pk",
       name: "Sika Super Admin",
-      role: Role.ADMIN,
+      role: Role.SUPER_ADMIN,
       passwordHash: hashedPassword,
     },
   });
@@ -56,7 +59,85 @@ async function main() {
     },
   });
 
-  // 4. Seed Categories
+  // 4. Seed B2B Applicant Users for Review Testing
+  const applicant1 = await prisma.user.upsert({
+    where: { email: "contractor.lahore@gmail.com" },
+    update: { passwordHash: hashedPassword },
+    create: {
+      name: "Tariq Mahmood",
+      email: "contractor.lahore@gmail.com",
+      role: Role.CUSTOMER,
+      companyName: "Al-Rehman Builders & Developers",
+      passwordHash: hashedPassword,
+    },
+  });
+
+  const applicant2 = await prisma.user.upsert({
+    where: { email: "projects@apexconstructions.pk" },
+    update: { passwordHash: hashedPassword },
+    create: {
+      name: "Kamran Akmal",
+      email: "projects@apexconstructions.pk",
+      role: Role.CUSTOMER,
+      companyName: "Apex Engineering & Construction",
+      passwordHash: hashedPassword,
+    },
+  });
+
+  const applicant3 = await prisma.user.upsert({
+    where: { email: "procurement@crescentwaterproofing.com" },
+    update: { passwordHash: hashedPassword },
+    create: {
+      name: "Bilal Chaudhry",
+      email: "procurement@crescentwaterproofing.com",
+      role: Role.CUSTOMER,
+      companyName: "Crescent Waterproofing Services",
+      passwordHash: hashedPassword,
+    },
+  });
+
+  // 5. Seed B2B Contractor Applications
+  const dummyApplications = [
+    {
+      userId: applicant1.id,
+      companyName: "Al-Rehman Builders & Developers",
+      ntnNumber: "4819203-7",
+      taxCertificateUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+      businessProofUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+      notes: "Requesting tier pricing for ongoing commercial plaza construction in Gulberg, Lahore.",
+      status: ApplicationStatus.PENDING,
+    },
+    {
+      userId: applicant2.id,
+      companyName: "Apex Engineering & Construction",
+      ntnNumber: "7210492-1",
+      taxCertificateUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+      businessProofUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+      notes: "Annual bulk chemical order contract for factory floor joint sealing and concrete repair.",
+      status: ApplicationStatus.PENDING,
+    },
+    {
+      userId: applicant3.id,
+      companyName: "Crescent Waterproofing Services",
+      ntnNumber: "3194820-4",
+      taxCertificateUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+      businessProofUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+      notes: "Certified Sika top applicator applying for distributor contractor margin tier.",
+      status: ApplicationStatus.PENDING,
+    },
+  ];
+
+  for (const app of dummyApplications) {
+    await prisma.b2BApplication.deleteMany({
+      where: { userId: app.userId },
+    });
+
+    await prisma.b2BApplication.create({
+      data: app,
+    });
+  }
+
+  // 6. Seed Categories
   const waterproofing = await prisma.category.upsert({
     where: { slug: "waterproofing" },
     update: {},
@@ -90,7 +171,7 @@ async function main() {
     },
   });
 
-  // 5. Seed Application Areas
+  // 7. Seed Application Areas
   const roofsTerraces = await prisma.applicationArea.upsert({
     where: { slug: "roofs-terraces" },
     update: {},
@@ -124,7 +205,7 @@ async function main() {
     },
   });
 
-  // Sample High-Res Images for Sika Product Displays
+  // Product Image Resources
   const sikatopImages = [
     "https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=800&q=80",
     "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=800&q=80",
@@ -140,27 +221,24 @@ async function main() {
     "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80",
   ];
 
-  // 6. Seed Products
+  // 8. Seed Products
   const sikatopProduct = await prisma.product.upsert({
     where: { slug: "sikatop-seal-107" },
     update: {
       images: sikatopImages,
       tdsUrl: "https://pk.sika.com/content/dam/dms/pk01/m/sikatop_seal-107.pdf",
-      sdsUrl:
-        "https://pk.sika.com/content/dam/dms/pk01/s/sikatop_seal-107_sds.pdf",
+      sdsUrl: "https://pk.sika.com/content/dam/dms/pk01/s/sikatop_seal-107_sds.pdf",
     },
     create: {
       name: "SikaTop Seal-107",
       slug: "sikatop-seal-107",
       sku: "SKU-STS-107",
-      description:
-        "Two-part polymer modified cementitious waterproof slurry mortar.",
+      description: "Two-part polymer modified cementitious waterproof slurry mortar.",
       packSize: "25 kg set",
       categoryId: waterproofing.id,
       images: sikatopImages,
       tdsUrl: "https://pk.sika.com/content/dam/dms/pk01/m/sikatop_seal-107.pdf",
-      sdsUrl:
-        "https://pk.sika.com/content/dam/dms/pk01/s/sikatop_seal-107_sds.pdf",
+      sdsUrl: "https://pk.sika.com/content/dam/dms/pk01/s/sikatop_seal-107_sds.pdf",
       applicationAreas: {
         connect: [
           { id: basementsFoundations.id },
@@ -188,8 +266,7 @@ async function main() {
       name: "SikaGrout-214 PK",
       slug: "sikagrout-214-pk",
       sku: "SKU-SGR-214",
-      description:
-        "1-component shrinkage compensated cementitious precision grout.",
+      description: "1-component shrinkage compensated cementitious precision grout.",
       packSize: "20 kg bag",
       categoryId: concreteRepair.id,
       images: sikagroutImages,
@@ -233,7 +310,7 @@ async function main() {
     },
   });
 
-  // 7. Seed Dummy Orders across all OrderStatus lifecycle states
+  // 9. Seed Orders across OrderStatus lifecycle states
   const dummyOrders = [
     {
       userId: customerUser.id,
@@ -260,7 +337,7 @@ async function main() {
       unitPrice: 3450.0,
     },
     {
-      userId: null, // Guest Checkout
+      userId: null,
       customerName: "Tariq Mahmood",
       customerEmail: "tariq.m@gmail.com",
       customerPhone: "+92 333 4567890",
@@ -284,7 +361,7 @@ async function main() {
       unitPrice: 1650.0,
     },
     {
-      userId: null, // Guest Checkout
+      userId: null,
       customerName: "Usman Raza",
       customerEmail: "usman.raza@yahoo.com",
       customerPhone: "+92 302 7788990",
@@ -320,12 +397,12 @@ async function main() {
     });
   }
 
-  console.log("Seeding completed successfully!");
+  console.log("🎉 Seeding completed successfully!");
 }
 
 main()
   .catch((e) => {
-    console.error("Seeding failed:", e);
+    console.error("❌ Seeding failed:", e);
     process.exit(1);
   })
   .finally(async () => {
