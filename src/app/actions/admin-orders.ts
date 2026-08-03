@@ -49,7 +49,9 @@ export async function getAdminOrders(filters: AdminOrderFilters = {}) {
     await requireAdmin()
 
     const { status, search, customerType, dateRange } = filters
-    const where: Prisma.OrderWhereInput = {}
+    
+    // Filter out soft-deleted orders by default
+    const where: Prisma.OrderWhereInput = { isDeleted: false }
 
     if (status && Object.values(OrderStatus).includes(status as OrderStatus)) {
       where.status = status as OrderStatus
@@ -147,7 +149,7 @@ export async function updateOrderStatus(orderId: string, newStatus: OrderStatus)
 
       const allowedNextStates = ALLOWED_TRANSITIONS[currentOrder.status]
       if (!allowedNextStates.includes(newStatus)) {
-        throw new Error(`Cannot transition order from ${currentOrder.status} to${newStatus}.`)
+        throw new Error(`Cannot transition order from ${currentOrder.status} to ${newStatus}.`)
       }
 
       return await tx.order.update({
@@ -258,23 +260,36 @@ export async function updateAdminOrderDetails(orderId: string, input: EditOrderI
 }
 
 /**
- * Single Order Deletion
+ * Single Order Deletion (Soft Delete)
  */
 export async function deleteSingleOrder(orderId: string) {
   try {
-    await requireAdmin()
+    const session = await requireAdmin()
+    
+    if (session.user?.role !== "SUPER_ADMIN") {
+      return { success: false, error: "Only Super Admins can delete orders." }
+    }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.orderItem.deleteMany({
-        where: { orderId },
-      })
-      await tx.order.delete({
-        where: { id: orderId },
-      })
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { status: true }
+    })
+
+    if (!order) {
+      return { success: false, error: "Order not found." }
+    }
+
+    if (order.status !== OrderStatus.PENDING && order.status !== OrderStatus.CANCELLED) {
+      return { success: false, error: "Only PENDING or CANCELLED orders can be deleted to preserve financial records." }
+    }
+
+    await prisma.order.update({
+      where: { id: orderId },
+      data: { isDeleted: true },
     })
 
     revalidatePath("/admin/orders")
-    return { success: true }
+    return { success: true, message: "Order successfully removed." }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to delete order"
     return { success: false, error: message }
@@ -282,28 +297,51 @@ export async function deleteSingleOrder(orderId: string) {
 }
 
 /**
- * Bulk Order Deletion
+ * Bulk Order Deletion (Soft Delete)
  */
 export async function deleteBatchOrders(orderIds: string[]) {
   try {
-    await requireAdmin()
+    const session = await requireAdmin()
+
+    if (session.user?.role !== "SUPER_ADMIN") {
+      return { success: false, error: "Only Super Admins can delete orders." }
+    }
 
     if (!orderIds || orderIds.length === 0) {
       return { success: false, error: "No orders selected for deletion." }
     }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.orderItem.deleteMany({
-        where: { orderId: { in: orderIds } },
-      })
+    const eligibleOrders = await prisma.order.findMany({
+      where: {
+        id: { in: orderIds },
+        status: { in: [OrderStatus.PENDING, OrderStatus.CANCELLED] },
+        isDeleted: false
+      },
+      select: { id: true }
+    })
 
-      await tx.order.deleteMany({
-        where: { id: { in: orderIds } },
-      })
+    const eligibleIds = eligibleOrders.map(o => o.id)
+
+    if (eligibleIds.length === 0) {
+      return { success: false, error: "None of the selected orders are eligible for deletion (must be PENDING or CANCELLED)." }
+    }
+
+    await prisma.order.updateMany({
+      where: { id: { in: eligibleIds } },
+      data: { isDeleted: true },
     })
 
     revalidatePath("/admin/orders")
-    return { success: true }
+    
+    if (eligibleIds.length < orderIds.length) {
+      const skipped = orderIds.length - eligibleIds.length
+      return { 
+        success: true, 
+        message: `Deleted ${eligibleIds.length} orders. Skipped ${skipped} orders to preserve financial records.` 
+      }
+    }
+
+    return { success: true, message: `Successfully deleted ${eligibleIds.length} orders.` }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to delete selected orders"
     return { success: false, error: message }

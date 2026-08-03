@@ -35,7 +35,12 @@ type SerializedOrder = {
   items: OrderItem[]
 }
 
-export function OrdersTableClient({ orders }: { orders: SerializedOrder[] }) {
+interface OrdersTableClientProps {
+  orders: SerializedOrder[]
+  isSuperAdmin: boolean
+}
+
+export function OrdersTableClient({ orders, isSuperAdmin }: OrdersTableClientProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [isPending, startTransition] = useTransition()
 
@@ -56,12 +61,13 @@ export function OrdersTableClient({ orders }: { orders: SerializedOrder[] }) {
   }
 
   const handleDeleteSingle = (id: string) => {
-    if (!confirm("Are you sure you want to delete this order? This action cannot be undone.")) return
+    if (!confirm("Are you sure you want to delete this order? This will hide it from the system.")) return
 
     startTransition(async () => {
       const res = await deleteSingleOrder(id)
       if (res.success) {
         setSelectedIds((prev) => prev.filter((item) => item !== id))
+        if (res.message) alert(res.message)
       } else {
         alert(res.error)
       }
@@ -69,12 +75,13 @@ export function OrdersTableClient({ orders }: { orders: SerializedOrder[] }) {
   }
 
   const handleDeleteBatch = () => {
-    if (!confirm(`Are you sure you want to delete ${selectedIds.length} selected order(s) permanently?`)) return
+    if (!confirm(`Are you sure you want to delete ${selectedIds.length} selected order(s)?`)) return
 
     startTransition(async () => {
       const res = await deleteBatchOrders(selectedIds)
       if (res.success) {
         setSelectedIds([])
+        if (res.message) alert(res.message)
       } else {
         alert(res.error)
       }
@@ -91,7 +98,7 @@ export function OrdersTableClient({ orders }: { orders: SerializedOrder[] }) {
           <ShoppingBag className="h-4 w-4 text-amber-500" /> Direct Orders ({orders.length})
         </h2>
 
-        {selectedIds.length > 0 && (
+        {isSuperAdmin && selectedIds.length > 0 && (
           <div className="flex items-center gap-3 bg-rose-50 border border-rose-200 px-3 py-1 rounded-xl">
             <span className="text-xs font-bold text-rose-800">
               {selectedIds.length} order(s) selected
@@ -138,6 +145,7 @@ export function OrdersTableClient({ orders }: { orders: SerializedOrder[] }) {
                 const isB2B = order.user?.role === "B2B"
                 const isGuest = !order.userId
                 const isChecked = selectedIds.includes(order.id)
+                const isDeletable = order.status === "PENDING" || order.status === "CANCELLED"
 
                 return (
                   <tr
@@ -218,7 +226,7 @@ export function OrdersTableClient({ orders }: { orders: SerializedOrder[] }) {
                       <OrderStatusSelect orderId={order.id} currentStatus={order.status} />
                     </td>
 
-                    <td className="py-4 px-4 align-top text-right space-x-2">
+                    <td className="py-4 px-4 align-top text-right space-x-2 flex justify-end">
                       <Link
                         href={`/admin/orders/${order.id}`}
                         className="inline-flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-amber-600 transition"
@@ -226,14 +234,16 @@ export function OrdersTableClient({ orders }: { orders: SerializedOrder[] }) {
                         Inspect <ChevronRight className="h-4 w-4" />
                       </Link>
 
-                      <button
-                        onClick={() => handleDeleteSingle(order.id)}
-                        disabled={isPending}
-                        title="Delete order"
-                        className="inline-flex items-center justify-center p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {isSuperAdmin && isDeletable && (
+                        <button
+                          onClick={() => handleDeleteSingle(order.id)}
+                          disabled={isPending}
+                          title="Delete order"
+                          className="inline-flex items-center justify-center p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 )

@@ -19,7 +19,10 @@ export async function getCustomerOrders() {
     const userId = session.user.id
 
     const orders = await prisma.order.findMany({
-      where: { userId }, // Strict IDOR scoping
+      where: { 
+        userId, 
+        isDeleted: false // Strict IDOR scoping + soft delete guard
+      }, 
       orderBy: { createdAt: "desc" },
       include: {
         items: {
@@ -51,7 +54,8 @@ export async function getCustomerOrderDetail(orderId: string) {
     const order = await prisma.order.findFirst({
       where: {
         id: orderId,
-        userId, // Strict IDOR scoping: users can ONLY view their own orders
+        userId, 
+        isDeleted: false // Strict IDOR scoping + soft delete guard
       },
       include: {
         items: {
@@ -93,6 +97,7 @@ export async function cancelCustomerOrder(orderId: string) {
           id: orderId,
           userId, // Ownership check
           status: { in: [OrderStatus.PENDING, OrderStatus.PROCESSING] }, // Write-time state guard
+          isDeleted: false
         },
         data: {
           status: OrderStatus.CANCELLED,

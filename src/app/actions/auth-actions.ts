@@ -28,39 +28,41 @@ export async function registerUser(input: RegisterUserInput) {
     }
 
     const hashedPassword = await bcrypt.hash(input.password, 10)
-    // Initial account is CUSTOMER until B2B application is explicitly approved by an admin
-    const userRole = input.role === "B2B" ? Role.CUSTOMER : Role.CUSTOMER 
 
-    const user = await prisma.user.create({
-      data: {
-        name: input.name,
-        email: emailNormalized,
-        passwordHash: hashedPassword,
-        role: userRole,
-        companyName: input.companyName,
-        ntnNumber: input.ntnNumber,
-      },
-    })
+    const wantsB2B =
+      input.role === "B2B" &&
+      !!input.companyName &&
+      !!input.ntnNumber &&
+      !!input.taxCertificateUrl &&
+      !!input.businessProofUrl
 
-    // If registered as B2B, create the PENDING application draft using the user's actual URLs
-    if (
-      input.role === "B2B" && 
-      input.companyName && 
-      input.ntnNumber && 
-      input.taxCertificateUrl && 
-      input.businessProofUrl
-    ) {
-      await prisma.b2BApplication.create({
+    await prisma.$transaction(async (tx) => {
+      // Every new account starts as CUSTOMER. B2B access is granted only
+      // after an admin reviews and approves the application created below.
+      const createdUser = await tx.user.create({
         data: {
-          userId: user.id,
+          name: input.name,
+          email: emailNormalized,
+          passwordHash: hashedPassword,
+          role: Role.CUSTOMER,
           companyName: input.companyName,
           ntnNumber: input.ntnNumber,
-          taxCertificateUrl: input.taxCertificateUrl,
-          businessProofUrl: input.businessProofUrl,
-          status: "PENDING",
         },
       })
-    }
+
+      if (wantsB2B) {
+        await tx.b2BApplication.create({
+          data: {
+            userId: createdUser.id,
+            companyName: input.companyName!,
+            ntnNumber: input.ntnNumber!,
+            taxCertificateUrl: input.taxCertificateUrl!,
+            businessProofUrl: input.businessProofUrl!,
+            status: "PENDING",
+          },
+        })
+      }
+    })
 
     return { success: true }
   } catch (error: unknown) {

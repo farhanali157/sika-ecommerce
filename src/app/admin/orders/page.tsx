@@ -1,3 +1,4 @@
+import { auth } from "@/auth"
 import { getAdminOrders } from "@/app/actions/admin-orders"
 import { serializeDecimals } from "@/lib/serialize"
 import { AdminOrderFilters } from "./admin-order-filters"
@@ -16,6 +17,9 @@ type Props = {
 }
 
 export default async function AdminOrdersPage({ searchParams }: Props) {
+  const session = await auth()
+  const isSuperAdmin = session?.user?.role === "SUPER_ADMIN"
+
   const params = await searchParams
   const { success, orders: rawOrders, error } = await getAdminOrders(params)
 
@@ -91,7 +95,7 @@ export default async function AdminOrdersPage({ searchParams }: Props) {
       <AdminOrderFilters />
 
       {/* Interactive Table with Single & Batch Deletion */}
-      <OrdersTableClient orders={orders} />
+      <OrdersTableClient orders={orders} isSuperAdmin={isSuperAdmin} />
     </div>
   )
 }
