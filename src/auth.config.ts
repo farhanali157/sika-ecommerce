@@ -17,7 +17,7 @@ export const authConfig = {
   callbacks: {
     session({ session, token }) {
       if (session.user) {
-        session.user.role = token.role as "CUSTOMER" | "B2B" | "ADMIN"
+        session.user.role = token.role as "CUSTOMER" | "B2B" | "ADMIN" | "SUPER_ADMIN"
       }
       return session
     },
@@ -26,16 +26,18 @@ export const authConfig = {
       const userRole = auth?.user?.role
       const { pathname } = nextUrl
 
-      // Protect Admin Dashboard
+      // Protect Admin Dashboard (Allow ADMIN and SUPER_ADMIN)
       if (pathname.startsWith("/admin")) {
         if (!isLoggedIn) return false
-        if (userRole !== "ADMIN") return NextResponse.redirect(new URL("/", nextUrl))
+        if (userRole !== "ADMIN" && userRole !== "SUPER_ADMIN") {
+          return NextResponse.redirect(new URL("/", nextUrl))
+        }
       }
 
-      // Protect B2B Portal
+      // Protect B2B Portal (Allow B2B, ADMIN, and SUPER_ADMIN)
       if (pathname.startsWith("/b2b")) {
         if (!isLoggedIn) return false
-        if (userRole !== "B2B" && userRole !== "ADMIN") {
+        if (userRole !== "B2B" && userRole !== "ADMIN" && userRole !== "SUPER_ADMIN") {
           return NextResponse.redirect(new URL("/", nextUrl))
         }
       }

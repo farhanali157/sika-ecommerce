@@ -141,8 +141,9 @@ export async function Navbar() {
               </Link>
             )}
 
-            {/* Admin Panel Link (if user is ADMIN) */}
-            {session?.user?.role === "ADMIN" && (
+            {/* Admin Panel Link (if user is ADMIN or SUPER_ADMIN) */}
+            {(session?.user?.role === "ADMIN" ||
+              session?.user?.role === "SUPER_ADMIN") && (
               <Link
                 href="/admin"
                 className="flex items-center gap-1 text-xs font-black text-amber-800 bg-amber-50 border border-amber-300 px-2.5 py-1 rounded-md hover:bg-amber-100 transition uppercase tracking-wider"

@@ -23,6 +23,8 @@ export function NavActions({ session }: NavActionsProps) {
   const [isCartOpen, setIsCartOpen] = useState(false)
 
   const userRole = session?.user?.role
+  // Allow access for both ADMIN (Manager) and SUPER_ADMIN
+  const isAdminOrSuperAdmin = userRole === "ADMIN" || userRole === "SUPER_ADMIN"
 
   return (
     <div className="flex items-center gap-4">
@@ -62,10 +64,11 @@ export function NavActions({ session }: NavActionsProps) {
               </span>
             </div>
 
-            {userRole === "ADMIN" && (
+            {/* SHOW ADMIN DASHBOARD LINK FOR BOTH ADMIN & SUPER_ADMIN */}
+            {isAdminOrSuperAdmin && (
               <DropdownMenuItem
                 onClick={() => router.push("/admin")}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-amber-50 hover:text-amber-600 rounded-lg transition cursor-pointer"
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-amber-700 bg-amber-50/60 hover:bg-amber-100/70 rounded-lg transition cursor-pointer mb-1"
               >
                 <Shield className="h-4 w-4 text-amber-600" /> Admin Dashboard
               </DropdownMenuItem>
