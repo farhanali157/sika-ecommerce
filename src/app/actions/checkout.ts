@@ -80,6 +80,22 @@ export async function createOrder(input: CreateOrderInput) {
         );
       }
 
+      // Re-validate that every item is still purchasable. A cart can sit for
+      // days before checkout — a product may have been archived or gone out
+      // of stock since it was added. Without this check, checkout would
+      // silently succeed for a product Sika can no longer fulfill.
+      const unavailableItems = dbCart.items.filter(
+        (item) => item.product.isArchived || item.product.status !== "IN_STOCK",
+      );
+
+      if (unavailableItems.length > 0) {
+        const names = unavailableItems.map((item) => item.product.name).join(", ");
+        const isPlural = unavailableItems.length > 1;
+        throw new Error(
+          `${names} ${isPlural ? "are" : "is"} no longer available. Please remove ${isPlural ? "them" : "it"} from your cart to continue.`,
+        );
+      }
+
       let orderUserId: string | null = sessionUserId || null;
 
       if (!orderUserId && sessionEmail) {
