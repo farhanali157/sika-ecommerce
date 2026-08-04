@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { User, LogOut, Shield, ShoppingBag, Building2 } from "lucide-react"
+import { User, LogOut, Shield, ShoppingBag, Building2, Package } from "lucide-react"
 import { signOut } from "next-auth/react"
 import type { Session } from "next-auth"
 import { CartSheet } from "@/components/cart-sheet"
@@ -91,6 +91,14 @@ export function NavActions({ session }: NavActionsProps) {
                 <Building2 className="h-4 w-4 text-amber-500" /> B2B Partner Portal
               </DropdownMenuItem>
             )}
+
+            {/* ORDER TRACKING / HISTORY */}
+            <DropdownMenuItem
+              onClick={() => router.push("/orders")}
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg transition cursor-pointer mb-1"
+            >
+              <Package className="h-4 w-4 text-amber-500" /> Order Tracking
+            </DropdownMenuItem>
 
             {/* STANDARD ACCOUNT SETTINGS FOR EVERYONE */}
             <DropdownMenuItem
