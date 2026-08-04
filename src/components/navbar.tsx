@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
   Package,
-  Search,
   Layers,
   ShoppingBag,
   Store,
@@ -18,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { NavActions } from "./nav-actions";
+import { SearchInput } from "./search-input";
 
 type NavItem = { id: string; name: string; slug: string };
 
@@ -188,17 +188,8 @@ export async function Navbar() {
             )}
           </div>
 
-          {/* Search Input Placeholder */}
-          <div className="flex-1 max-w-md hidden md:block">
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search Sika products (e.g. SikaTop, Sikaflex)..."
-                className="w-full pl-9 pr-4 py-1.5 text-sm rounded-lg border border-gray-300 focus:outline-none focus:border-amber-500"
-              />
-            </div>
-          </div>
+          {/* Interactive Search Component */}
+          <SearchInput />
 
           {/* User Auth Actions & Cart */}
           <div className="flex items-center gap-4">
