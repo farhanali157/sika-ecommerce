@@ -1,11 +1,17 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, ShieldCheck, Truck, Wrench, Package } from "lucide-react";
+import { ArrowRight, ShieldCheck, Truck, Wrench, Package, Layers } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { serializeDecimals } from "@/lib/serialize";
 import { STOREFRONT_PRODUCT_FILTER } from "@/lib/product-queries";
 
 type CategorySummary = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
+type ApplicationAreaSummary = {
   id: string;
   name: string;
   slug: string;
@@ -27,11 +33,21 @@ type FeaturedProduct = {
 
 export default async function HomePage() {
   let categories: CategorySummary[] = [];
+  let applicationAreas: ApplicationAreaSummary[] = [];
   let featuredProducts: FeaturedProduct[] = [];
   let isDbOffline = false;
 
   try {
     categories = await prisma.category.findMany({
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+      },
+      take: 4,
+    });
+
+    applicationAreas = await prisma.applicationArea.findMany({
       select: {
         id: true,
         name: true,
@@ -64,7 +80,6 @@ export default async function HomePage() {
       },
     });
 
-    // Cast the returned serialized type cleanly to FeaturedProduct[]
     featuredProducts = serializeDecimals(rawFeaturedProducts) as unknown as FeaturedProduct[];
   } catch (error) {
     console.error("[Homepage] Database fetch degraded:", error);
@@ -134,9 +149,12 @@ export default async function HomePage() {
               Products By Category
             </h2>
             <p className="text-sm text-gray-500 mt-1">
-              Select your application area
+              Select your product category
             </p>
           </div>
+          <Link href="/products" className="text-sm font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1">
+            View All <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
 
         {categories.length > 0 ? (
@@ -144,7 +162,7 @@ export default async function HomePage() {
             {categories.map((cat) => (
               <Link
                 key={cat.id}
-                href={`/category/${cat.slug}`}
+                href={`/products?category=${cat.slug}`}
                 className="group rounded-xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md transition text-center flex flex-col items-center justify-center hover:border-amber-500"
               >
                 <div className="h-16 w-16 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mb-4 group-hover:bg-amber-500 group-hover:text-black transition">
@@ -165,8 +183,50 @@ export default async function HomePage() {
         )}
       </section>
 
-      {/* BEST SELLERS / FEATURED PRODUCTS */}
+      {/* PRODUCTS BY APPLICATION AREA */}
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 bg-white border-t border-gray-200">
+        <div className="flex justify-between items-end mb-6">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight text-gray-900 uppercase">
+              Products By Application Area
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Find solutions mapped to your construction site requirements
+            </p>
+          </div>
+          <Link href="/locator" className="text-sm font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1">
+            Store Locator <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+
+        {applicationAreas.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+            {applicationAreas.map((area) => (
+              <Link
+                key={area.id}
+                href={`/products?area=${area.slug}`}
+                className="group rounded-xl border border-gray-200 bg-gray-50 p-6 shadow-sm hover:shadow-md transition text-center flex flex-col items-center justify-center hover:border-amber-500 hover:bg-white"
+              >
+                <div className="h-16 w-16 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mb-4 group-hover:bg-amber-500 group-hover:text-black transition">
+                  <Layers className="h-8 w-8" />
+                </div>
+                <h3 className="font-bold text-gray-900 group-hover:text-amber-600 transition">
+                  {area.name}
+                </h3>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-gray-300 p-8 text-center text-gray-500 text-sm bg-gray-50">
+            {isDbOffline
+              ? "Application areas are temporarily unavailable."
+              : "No application areas currently listed."}
+          </div>
+        )}
+      </section>
+
+      {/* BEST SELLERS / FEATURED PRODUCTS */}
+      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 border-t border-gray-200">
         <div className="flex justify-between items-end mb-8">
           <div>
             <span className="text-xs font-bold uppercase tracking-wider text-amber-600">
