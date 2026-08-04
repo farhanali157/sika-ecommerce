@@ -1,3 +1,5 @@
+"use client";
+
 import { MapPin, Phone, Printer, Mail } from "lucide-react";
 
 export default function ContactUsPage() {
