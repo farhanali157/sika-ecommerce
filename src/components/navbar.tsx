@@ -8,6 +8,7 @@ import {
   Shield,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { redis } from "@/lib/redis";
 import { auth } from "@/auth";
 import { DEMO_CATEGORIES, DEMO_AREAS } from "@/lib/demo-data";
 import {
@@ -18,10 +19,30 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { NavActions } from "./nav-actions";
 
-export async function Navbar() {
-  let categories: { id: string; name: string; slug: string }[] = [];
-  let areas: { id: string; name: string; slug: string }[] = [];
+type NavItem = { id: string; name: string; slug: string };
 
+async function getCachedNavData(): Promise<{ categories: NavItem[]; areas: NavItem[] }> {
+  const categoriesCacheKey = "sika:cache:navbar:categories";
+  const areasCacheKey = "sika:cache:navbar:areas";
+
+  try {
+    // 1. Try reading both from Redis cache concurrently (blazing fast, 0 DB load)
+    const [cachedCategories, cachedAreas] = await Promise.all([
+      redis.get(categoriesCacheKey),
+      redis.get(areasCacheKey),
+    ]);
+
+    if (cachedCategories && cachedAreas) {
+      return {
+        categories: cachedCategories as NavItem[],
+        areas: cachedAreas as NavItem[],
+      };
+    }
+  } catch (error) {
+    console.error("Redis cache read error:", error);
+  }
+
+  // 2. Fallback to PostgreSQL database on cache miss or error
   try {
     const [fetchedCategories, fetchedAreas] = await Promise.all([
       prisma.category.findMany({
@@ -31,18 +52,32 @@ export async function Navbar() {
         select: { id: true, name: true, slug: true },
       }),
     ]);
-    categories = fetchedCategories;
-    areas = fetchedAreas;
-  } catch (error) {
-    console.error("Navbar DB fetch error:", error);
-    categories = DEMO_CATEGORIES.map(({ id, name, slug }) => ({
-      id,
-      name,
-      slug,
-    }));
-    areas = DEMO_AREAS.map(({ id, name, slug }) => ({ id, name, slug }));
-  }
 
+    // 3. Store results in Redis with a 60-second TTL
+    try {
+      await Promise.all([
+        redis.set(categoriesCacheKey, fetchedCategories, { ex: 60 }),
+        redis.set(areasCacheKey, fetchedAreas, { ex: 60 }),
+      ]);
+    } catch (cacheWriteError) {
+      console.error("Redis cache write error:", cacheWriteError);
+    }
+
+    return {
+      categories: fetchedCategories,
+      areas: fetchedAreas,
+    };
+  } catch (dbError) {
+    console.error("Navbar DB fallback error:", dbError);
+    return {
+      categories: DEMO_CATEGORIES.map(({ id, name, slug }) => ({ id, name, slug })),
+      areas: DEMO_AREAS.map(({ id, name, slug }) => ({ id, name, slug })),
+    };
+  }
+}
+
+export async function Navbar() {
+  const { categories, areas } = await getCachedNavData();
   const session = await auth();
 
   return (

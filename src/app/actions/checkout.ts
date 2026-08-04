@@ -6,6 +6,8 @@ import { getOrCreateCart } from "@/app/actions/cart";
 import { calculateCartSubtotal } from "@/lib/cart-engine";
 import { sendOrderConfirmationEmail } from "@/lib/email";
 import { calculateShippingFee } from "@/lib/pricing-constants";
+import { rateLimiter } from "@/lib/ratelimit";
+import { headers } from "next/headers";
 import { after } from "next/server";
 import { z } from "zod";
 
@@ -34,7 +36,19 @@ type CreateOrderInput = z.infer<typeof createOrderSchema>;
 
 export async function createOrder(input: CreateOrderInput) {
   try {
-    // 1. Zod Server-side Validation
+    // 1. Rate Limiting Check
+    const headersList = await headers();
+    const ip = headersList.get("x-forwarded-for") ?? "127.0.0.1";
+    const { success: rateLimitSuccess } = await rateLimiter.limit(`checkout_ip_${ip}`);
+
+    if (!rateLimitSuccess) {
+      return {
+        success: false,
+        error: "Too many checkout attempts. Please wait a moment and try again.",
+      };
+    }
+
+    // 2. Zod Server-side Validation
     const parsed = createOrderSchema.safeParse(input);
     if (!parsed.success) {
       return {
@@ -52,9 +66,7 @@ export async function createOrder(input: CreateOrderInput) {
 
     const activeCart = await getOrCreateCart();
 
-    // Execute Read, Price Snapshot, Order Creation, and Cart Wipe inside ONE atomic Transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Row Lock
       await tx.$executeRaw`SELECT id FROM "Cart" WHERE id = ${activeCart.id} FOR UPDATE`;
 
       const dbCart = await tx.cart.findUnique({
@@ -80,10 +92,6 @@ export async function createOrder(input: CreateOrderInput) {
         );
       }
 
-      // Re-validate that every item is still purchasable. A cart can sit for
-      // days before checkout — a product may have been archived or gone out
-      // of stock since it was added. Without this check, checkout would
-      // silently succeed for a product Sika can no longer fulfill.
       const unavailableItems = dbCart.items.filter(
         (item) => item.product.isArchived || item.product.status !== "IN_STOCK",
       );
@@ -117,8 +125,6 @@ export async function createOrder(input: CreateOrderInput) {
       const shippingFee = calculateShippingFee(subtotal);
       const grandTotal = subtotal + shippingFee;
 
-     
-
       const newOrder = await tx.order.create({
         data: {
           userId: orderUserId ?? undefined,
@@ -130,8 +136,8 @@ export async function createOrder(input: CreateOrderInput) {
           customerEmail: validatedData.customerEmail.toLowerCase().trim(),
           customerPhone: validatedData.customerPhone,
           shippingAddress: `${validatedData.shippingAddress}, ${validatedData.city}`,
-          ntnNumber: validatedData.ntnNumber || null, // <-- Saved directly to its own column
-          notes: validatedData.notes, // <-- Notes are now clean
+          ntnNumber: validatedData.ntnNumber || null,
+          notes: validatedData.notes,
           items: {
             create: cartSummary.items.map((item) => ({
               productId: item.productId,

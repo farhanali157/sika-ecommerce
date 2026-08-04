@@ -2,7 +2,9 @@
 
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { submissionRateLimiter } from "@/lib/ratelimit"
 import { ApplicationStatus } from "@prisma/client"
+import { headers } from "next/headers"
 import { revalidatePath } from "next/cache"
 
 export async function getMyB2BApplication() {
@@ -33,6 +35,15 @@ export async function submitOrUpdateB2BApplication(input: B2BApplicationInput) {
     return { success: false, error: "Authentication required." }
   }
 
+  // Rate limit B2B submissions to prevent script spam
+  const headersList = await headers()
+  const ip = headersList.get("x-forwarded-for") ?? "127.0.0.1"
+  const { success: rateLimitSuccess } = await submissionRateLimiter.limit(`b2b_sub_${session.user.id}_${ip}`)
+
+  if (!rateLimitSuccess) {
+    return { success: false, error: "Too many submission attempts. Please try again later." }
+  }
+
   const existingApp = await prisma.b2BApplication.findFirst({
     where: { userId: session.user.id },
     orderBy: { createdAt: "desc" },
@@ -46,7 +57,6 @@ export async function submitOrUpdateB2BApplication(input: B2BApplicationInput) {
     return { success: false, error: "You already have an application under review." }
   }
 
-  // Update existing rejected record or create a fresh pending application
   if (existingApp && existingApp.status === ApplicationStatus.REJECTED) {
     await prisma.b2BApplication.update({
       where: { id: existingApp.id },
@@ -73,7 +83,6 @@ export async function submitOrUpdateB2BApplication(input: B2BApplicationInput) {
     })
   }
 
-  // Keep user's company profile synced
   await prisma.user.update({
     where: { id: session.user.id },
     data: {
