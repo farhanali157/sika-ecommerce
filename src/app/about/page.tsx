@@ -1,4 +1,4 @@
-import { ShieldCheck, Award, Globe, Building2 } from "lucide-react";
+import { ShieldCheck, Award, Building2 } from "lucide-react";
 
 export default function AboutUsPage() {
   return (
