@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { Navbar } from "@/components/navbar"
+import { Footer } from "@/components/footer"
 import { SessionProvider } from "next-auth/react"
 import { auth } from "@/auth"
 
@@ -23,8 +24,13 @@ export default async function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <SessionProvider session={session}>
-          <Navbar />
-          <main>{children}</main>
+          <div className="flex min-h-screen flex-col justify-between">
+            <div>
+              <Navbar />
+              <main>{children}</main>
+            </div>
+            <Footer />
+          </div>
         </SessionProvider>
       </body>
     </html>
