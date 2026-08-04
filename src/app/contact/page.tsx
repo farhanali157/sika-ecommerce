@@ -1,8 +1,36 @@
 "use client";
 
-import { MapPin, Phone, Printer, Mail } from "lucide-react";
+import { useState } from "react";
+import { MapPin, Phone, Printer, Mail, CheckCircle2, AlertCircle } from "lucide-react";
 
 export default function ContactUsPage() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
+  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStatus("submitting");
+
+    try {
+      // PROD NOTE: Replace this timeout with your actual API call or Server Action
+      // await fetch('/api/contact', { method: 'POST', body: JSON.stringify({ name, email, message }) });
+      await new Promise((resolve) => setTimeout(resolve, 1500)); 
+      
+      setStatus("success");
+      setName("");
+      setEmail("");
+      setMessage("");
+
+      // Reset the success message after 4 seconds
+      setTimeout(() => setStatus("idle"), 4000);
+    } catch (error) {
+      console.error("Failed to send message:", error);
+      setStatus("error");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl space-y-8">
@@ -53,13 +81,67 @@ export default function ContactUsPage() {
               <h4 className="font-bold text-gray-900">Quick Inquiry</h4>
               <p className="text-xs text-gray-500">Send us a direct message and our technical team will respond within 24 business hours.</p>
             </div>
-            <form onSubmit={(e) => e.preventDefault()} className="space-y-3 pt-4">
-              <input type="text" placeholder="Your Name" className="w-full text-sm p-2.5 rounded border border-gray-300 bg-white" />
-              <input type="email" placeholder="Email Address" className="w-full text-sm p-2.5 rounded border border-gray-300 bg-white" />
-              <textarea placeholder="Message / Project Details" rows={3} className="w-full text-sm p-2.5 rounded border border-gray-300 bg-white"></textarea>
-              <button type="submit" className="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold text-sm py-2.5 rounded transition">
-                Send Message
+            
+            <form onSubmit={handleSubmit} className="space-y-3 pt-4">
+              <input 
+                type="text" 
+                required
+                disabled={status === "submitting"}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your Name" 
+                className="w-full text-sm p-2.5 rounded border border-gray-300 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors" 
+              />
+              <input 
+                type="email" 
+                required
+                disabled={status === "submitting"}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email Address" 
+                className="w-full text-sm p-2.5 rounded border border-gray-300 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors" 
+              />
+              <textarea 
+                required
+                disabled={status === "submitting"}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Message / Project Details" 
+                rows={4} 
+                className="w-full text-sm p-2.5 rounded border border-gray-300 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors resize-none"
+              ></textarea>
+              
+              <button 
+                type="submit" 
+                disabled={status === "submitting" || status === "success"}
+                className="w-full flex items-center justify-center bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 disabled:cursor-not-allowed text-black font-bold text-sm py-2.5 rounded transition-colors"
+              >
+                {status === "submitting" ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-4 w-4 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Sending...
+                  </span>
+                ) : (
+                  "Send Message"
+                )}
               </button>
+
+              {/* Status Messages */}
+              {status === "success" && (
+                <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 p-2.5 rounded text-xs font-bold border border-emerald-200">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Your message has been sent successfully.
+                </div>
+              )}
+              {status === "error" && (
+                <div className="flex items-center gap-2 text-red-600 bg-red-50 p-2.5 rounded text-xs font-bold border border-red-200">
+                  <AlertCircle className="h-4 w-4" />
+                  Something went wrong. Please try again.
+                </div>
+              )}
             </form>
           </div>
         </div>
