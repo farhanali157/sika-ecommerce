@@ -5,6 +5,12 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
+// Super Admin has every Admin power plus more — product management is a
+// regular admin capability, so both roles must be allowed through.
+function canManageProducts(role: string | undefined): boolean {
+  return role === "ADMIN" || role === "SUPER_ADMIN"
+}
+
 const productSchema = z.object({
   name: z.string().min(2, "Product name is required"),
   slug: z.string().min(2, "Slug is required"),
@@ -26,7 +32,7 @@ const productSchema = z.object({
 export async function createProductAction(formData: unknown) {
   const session = await auth()
 
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!session?.user || !canManageProducts(session.user.role)) {
     return { success: false, error: "Unauthorized access" }
   }
 
@@ -89,7 +95,7 @@ export async function createProductAction(formData: unknown) {
 export async function updateProductAction(id: string, formData: unknown) {
   const session = await auth()
 
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!session?.user || !canManageProducts(session.user.role)) {
     return { success: false, error: "Unauthorized access" }
   }
 
@@ -170,7 +176,7 @@ export async function updateProductStatusAction(
   status: "IN_STOCK" | "OUT_OF_STOCK" | "DISCONTINUED" | "BACKORDER"
 ) {
   const session = await auth()
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!session?.user || !canManageProducts(session.user.role)) {
     return { success: false, error: "Unauthorized" }
   }
 
@@ -189,7 +195,7 @@ export async function updateProductStatusAction(
 
 export async function toggleProductFeaturedAction(id: string, isFeatured: boolean) {
   const session = await auth()
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!session?.user || !canManageProducts(session.user.role)) {
     return { success: false, error: "Unauthorized" }
   }
 
@@ -208,7 +214,7 @@ export async function toggleProductFeaturedAction(id: string, isFeatured: boolea
 
 export async function deleteProductAction(id: string) {
   const session = await auth()
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!session?.user || !canManageProducts(session.user.role)) {
     return { success: false, error: "Unauthorized" }
   }
 

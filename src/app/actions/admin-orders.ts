@@ -265,28 +265,32 @@ export async function updateAdminOrderDetails(orderId: string, input: EditOrderI
 export async function deleteSingleOrder(orderId: string) {
   try {
     const session = await requireAdmin()
-    
+
     if (session.user?.role !== "SUPER_ADMIN") {
       return { success: false, error: "Only Super Admins can delete orders." }
     }
 
-    const order = await prisma.order.findUnique({
-      where: { id: orderId },
-      select: { status: true }
-    })
-
-    if (!order) {
-      return { success: false, error: "Order not found." }
-    }
-
-    if (order.status !== OrderStatus.PENDING && order.status !== OrderStatus.CANCELLED) {
-      return { success: false, error: "Only PENDING or CANCELLED orders can be deleted to preserve financial records." }
-    }
-
-    await prisma.order.update({
-      where: { id: orderId },
+    // Compare-and-swap: the eligibility condition is enforced by the database
+    // at write time, inside the WHERE clause, rather than checked in a
+    // separate read beforehand. This closes the race window where another
+    // request could change the order's status between a check and a later,
+    // unconditional write — same pattern as cancelCustomerOrder.
+    const result = await prisma.order.updateMany({
+      where: {
+        id: orderId,
+        isDeleted: false,
+        status: { in: [OrderStatus.PENDING, OrderStatus.CANCELLED] },
+      },
       data: { isDeleted: true },
     })
+
+    if (result.count === 0) {
+      return {
+        success: false,
+        error:
+          "This order can no longer be deleted — it may have progressed past Pending/Cancelled, already been deleted, or does not exist.",
+      }
+    }
 
     revalidatePath("/admin/orders")
     return { success: true, message: "Order successfully removed." }
@@ -311,37 +315,37 @@ export async function deleteBatchOrders(orderIds: string[]) {
       return { success: false, error: "No orders selected for deletion." }
     }
 
-    const eligibleOrders = await prisma.order.findMany({
+    // Same compare-and-swap approach as the single-delete path: one atomic
+    // write with the eligibility condition in the WHERE clause. No separate
+    // read-then-write gap for anything that actually mutates data — the
+    // count returned tells us how many were actually eligible and deleted.
+    const result = await prisma.order.updateMany({
       where: {
         id: { in: orderIds },
+        isDeleted: false,
         status: { in: [OrderStatus.PENDING, OrderStatus.CANCELLED] },
-        isDeleted: false
       },
-      select: { id: true }
-    })
-
-    const eligibleIds = eligibleOrders.map(o => o.id)
-
-    if (eligibleIds.length === 0) {
-      return { success: false, error: "None of the selected orders are eligible for deletion (must be PENDING or CANCELLED)." }
-    }
-
-    await prisma.order.updateMany({
-      where: { id: { in: eligibleIds } },
       data: { isDeleted: true },
     })
 
     revalidatePath("/admin/orders")
-    
-    if (eligibleIds.length < orderIds.length) {
-      const skipped = orderIds.length - eligibleIds.length
-      return { 
-        success: true, 
-        message: `Deleted ${eligibleIds.length} orders. Skipped ${skipped} orders to preserve financial records.` 
+
+    if (result.count === 0) {
+      return {
+        success: false,
+        error: "None of the selected orders are eligible for deletion (must be PENDING or CANCELLED).",
       }
     }
 
-    return { success: true, message: `Successfully deleted ${eligibleIds.length} orders.` }
+    if (result.count < orderIds.length) {
+      const skipped = orderIds.length - result.count
+      return {
+        success: true,
+        message: `Deleted ${result.count} orders. Skipped ${skipped} orders to preserve financial records.`,
+      }
+    }
+
+    return { success: true, message: `Successfully deleted ${result.count} orders.` }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to delete selected orders"
     return { success: false, error: message }
