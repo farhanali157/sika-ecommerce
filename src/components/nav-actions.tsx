@@ -94,7 +94,7 @@ export function NavActions({ session }: NavActionsProps) {
 
             {/* ORDER TRACKING / HISTORY */}
             <DropdownMenuItem
-              onClick={() => router.push("/orders")}
+              onClick={() => router.push("/account/orders")}
               className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg transition cursor-pointer mb-1"
             >
               <Package className="h-4 w-4 text-amber-500" /> Order Tracking
