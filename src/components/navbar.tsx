@@ -1,11 +1,5 @@
 import Link from "next/link";
-import {
-  Package,
-  Layers,
-  ShoppingBag,
-  Store,
-  Shield,
-} from "lucide-react";
+import { Package, Layers, ShoppingBag, Store, Shield } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { redis } from "@/lib/redis";
 import { auth } from "@/auth";
@@ -21,7 +15,10 @@ import { SearchInput } from "./search-input";
 
 type NavItem = { id: string; name: string; slug: string };
 
-async function getCachedNavData(): Promise<{ categories: NavItem[]; areas: NavItem[] }> {
+async function getCachedNavData(): Promise<{
+  categories: NavItem[];
+  areas: NavItem[];
+}> {
   const categoriesCacheKey = "sika:cache:navbar:categories";
   const areasCacheKey = "sika:cache:navbar:areas";
 
@@ -70,7 +67,11 @@ async function getCachedNavData(): Promise<{ categories: NavItem[]; areas: NavIt
   } catch (dbError) {
     console.error("Navbar DB fallback error:", dbError);
     return {
-      categories: DEMO_CATEGORIES.map(({ id, name, slug }) => ({ id, name, slug })),
+      categories: DEMO_CATEGORIES.map(({ id, name, slug }) => ({
+        id,
+        name,
+        slug,
+      })),
       areas: DEMO_AREAS.map(({ id, name, slug }) => ({ id, name, slug })),
     };
   }
@@ -87,10 +88,16 @@ export async function Navbar() {
         <div className="mx-auto max-w-7xl flex justify-between items-center">
           <span>Official Sika® E-Commerce Platform</span>
           <div className="flex gap-4">
-            <a href="mailto:support@sika.com.pk" className="hover:underline">
+            <a
+              href="mailto:information@pk.sika.com"
+              className="hover:underline hover:text-amber-500 transition-colors"
+            >
               Support
             </a>
-            <Link href="/locator" className="hover:underline">
+            <Link
+              href="/locator"
+              className="hover:underline hover:text-amber-500 transition-colors"
+            >
               Distributor Finder
             </Link>
           </div>
