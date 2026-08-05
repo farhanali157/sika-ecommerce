@@ -255,15 +255,15 @@ export function Footer() {
             rights reserved.
           </p>
           <div className="flex space-x-6 mt-4 sm:mt-0 font-semibold">
-            <span className="hover:text-red-700 cursor-pointer">
+            <Link href="/privacy" className="hover:text-red-700 transition-colors">
               Privacy Policy
-            </span>
-            <span className="hover:text-red-700 cursor-pointer">
+            </Link>
+            <Link href="/terms" className="hover:text-red-700 transition-colors">
               Terms of Service
-            </span>
-            <span className="hover:text-red-700 cursor-pointer">
+            </Link>
+            <Link href="/disclaimer" className="hover:text-red-700 transition-colors">
               Technical Compliance
-            </span>
+            </Link>
           </div>
         </div>
       </div>
