@@ -3,46 +3,43 @@
 import { useState, useEffect } from "react";
 
 export default function WhatsAppButton() {
-  const [buttonStyle, setButtonStyle] = useState<"fixed" | "absolute" | "hidden">("fixed");
-  const [bottomOffset, setBottomOffset] = useState("24px"); // 24px is bottom-6
+  const [isSticky, setIsSticky] = useState(false);
+  const [stickyBottom, setStickyBottom] = useState("24px");
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   useEffect(() => {
     const handleScrollOrMutations = () => {
       // 1. Check if Cart Drawer is open
       const cartOpen = document.body.getAttribute("data-cart-open") === "true" || 
                        document.querySelector('[role="dialog"]') !== null;
-      if (cartOpen) {
-        setButtonStyle("hidden");
-        return;
-      }
+      setIsCartOpen(cartOpen);
 
-      // 2. Footer interaction logic
+      // 2. Precise Footer Boundary Calculation
       const footer = document.querySelector("footer");
       if (footer) {
         const footerRect = footer.getBoundingClientRect();
         const windowHeight = window.innerHeight;
 
-        // If the top of the footer has scrolled up into view
+        // If the top of the footer has entered the viewport
         if (footerRect.top < windowHeight) {
-          // Calculate how far the footer has entered the screen
-          const scrollIntoFooter = windowHeight - footerRect.top;
+          // Calculate how far the footer's bottom is relative to the viewport bottom
+          const footerBottomRelativeToWindow = footerRect.bottom - windowHeight;
           
-          // Height of our footer's bottom copyright section (approx 60-80px)
-          const bottomBarHeight = 70; 
+          // The height of the bottom copyright bar section (below the thin line)
+          // Adjust this value if needed, ~50px usually targets right above the line
+          const copyrightBarHeight = 55;
 
-          if (scrollIntoFooter >= bottomBarHeight) {
-            // Pin it right above the copyright line inside the footer space
-            setButtonStyle("absolute");
-            setBottomOffset(`${bottomBarHeight + 20}px`);
+          if (footerBottomRelativeToWindow <= copyrightBarHeight) {
+            // Pin the button right above the line inside the footer container
+            setIsSticky(true);
+            setStickyBottom(`${copyrightBarHeight + 15}px`);
           } else {
-            // As it first enters the footer area, let it transition smoothly
-            setButtonStyle("fixed");
-            setBottomOffset("24px");
+            setIsSticky(false);
+            setStickyBottom("24px");
           }
         } else {
-          // Normal floating state while viewing upper pages
-          setButtonStyle("fixed");
-          setBottomOffset("24px");
+          setIsSticky(false);
+          setStickyBottom("24px");
         }
       }
     };
@@ -59,7 +56,7 @@ export default function WhatsAppButton() {
     };
   }, []);
 
-  if (buttonStyle === "hidden") return null;
+  if (isCartOpen) return null;
 
   const whatsappNumber = "923217452360";
   const defaultMessage = "Hello Sika Team! I have an inquiry regarding product specifications.";
@@ -71,9 +68,9 @@ export default function WhatsAppButton() {
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Chat on WhatsApp"
-      style={{ bottom: bottomOffset }}
-      className={`right-6 z-40 flex items-center bg-[#1db847] hover:bg-[#1db846d1] text-white font-bold h-12 w-12 hover:w-40 rounded-full shadow-lg hover:shadow-xl overflow-hidden transition-all duration-300 ease-in-out group px-3.5 ${
-        buttonStyle === "absolute" ? "absolute" : "fixed"
+      style={{ bottom: stickyBottom }}
+      className={`right-6 z-40 flex items-center bg-[#23cf4b] hover:bg-[#19a43e] text-white font-bold h-12 w-12 hover:w-40 rounded-full shadow-lg hover:shadow-xl overflow-hidden transition-all duration-300 ease-in-out group px-3.5 ${
+        isSticky ? "absolute" : "fixed"
       }`}
     >
       {/* WhatsApp SVG Icon */}
