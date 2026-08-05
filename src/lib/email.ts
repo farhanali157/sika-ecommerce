@@ -116,10 +116,73 @@ export async function sendOrderConfirmationEmail(payload: OrderEmailPayload) {
       return { success: false, error }
     }
 
-    console.log(`[EMAIL_DISPATCH_SUCCESS] Order confirmation sent to ${payload.customerEmail} (ID: ${data?.id})`)
     return { success: true, id: data?.id }
   } catch (err: unknown) {
     console.error(`[EMAIL_DISPATCH_EXCEPTION] Non-blocking mailer exception for Order #${payload.orderId}:`, err)
+    return { success: false, error: err }
+  }
+}
+
+export type ContactInquiryPayload = {
+  name: string
+  email: string
+  message: string
+}
+
+const CONTACT_INBOX = process.env.CONTACT_INBOX_EMAIL || "information@pk.sika.com"
+
+/**
+ * Sends a customer contact-form inquiry to the Sika Pakistan support inbox,
+ * with the customer's own address set as replyTo so the team can respond directly.
+ */
+export async function sendContactInquiryEmail(payload: ContactInquiryPayload) {
+  try {
+    const resend = getResendClient()
+    if (!resend) {
+      console.warn("[CONTACT_EMAIL_SKIPPED] RESEND_API_KEY is not configured in .env.")
+      return { success: false, reason: "API key not configured" }
+    }
+
+    if (!payload.email || !payload.email.includes("@")) {
+      return { success: false, reason: "Invalid sender email" }
+    }
+
+    const safeName = escapeHtml(payload.name)
+    const safeEmail = escapeHtml(payload.email)
+    const safeMessage = escapeHtml(payload.message).replace(/\n/g, "<br />")
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+        <h2 style="color: #d97706; border-bottom: 2px solid #f3f4f6; padding-bottom: 10px;">
+          SIKA PAKISTAN — New Website Inquiry
+        </h2>
+        <p><strong>From:</strong> ${safeName} (${safeEmail})</p>
+        <div style="background-color: #f9fafb; border: 1px solid #eee; border-radius: 8px; padding: 16px; margin-top: 12px;">
+          <p style="white-space: pre-wrap; margin: 0;">${safeMessage}</p>
+        </div>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+        <p style="font-size: 12px; color: #666;">
+          Reply directly to this email to respond to ${safeName}.
+        </p>
+      </div>
+    `
+
+    const { data, error } = await resend.emails.send({
+      from: "Sika Website <onboarding@resend.dev>",
+      to: [CONTACT_INBOX],
+      replyTo: payload.email,
+      subject: `New Contact Inquiry from ${payload.name}`,
+      html: htmlContent,
+    })
+
+    if (error) {
+      console.error("[CONTACT_EMAIL_FAILED] Resend API error:", error)
+      return { success: false, error }
+    }
+
+    return { success: true, id: data?.id }
+  } catch (err: unknown) {
+    console.error("[CONTACT_EMAIL_EXCEPTION] Contact form mailer exception:", err)
     return { success: false, error: err }
   }
 }
