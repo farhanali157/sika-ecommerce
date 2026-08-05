@@ -14,8 +14,19 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 30 // 30 days
  */
 export async function getOrCreateCart() {
   const session = await auth()
-  const userId = session?.user?.id
+  let userId = session?.user?.id
   const cookieStore = await cookies()
+
+  // 0. Verify user actually exists in the database to prevent Foreign Key P2003 crashes from stale sessions
+  if (userId) {
+    const userExists = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    })
+    if (!userExists) {
+      userId = undefined // Fall back safely if the user record was deleted or reset
+    }
+  }
 
   // 1. Authenticated User Flow
   if (userId) {
