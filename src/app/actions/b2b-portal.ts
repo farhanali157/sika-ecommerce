@@ -35,63 +35,78 @@ export async function submitOrUpdateB2BApplication(input: B2BApplicationInput) {
     return { success: false, error: "Authentication required." }
   }
 
-  // Rate limit B2B submissions to prevent script spam
-  const headersList = await headers()
-  const ip = headersList.get("x-forwarded-for") ?? "127.0.0.1"
-  const { success: rateLimitSuccess } = await submissionRateLimiter.limit(`b2b_sub_${session.user.id}_${ip}`)
+  try {
+    // Rate limit B2B submissions to prevent script spam. Fails OPEN if
+    // Redis itself errors — only an actual rate-limit-exceeded result
+    // blocks the submission.
+    try {
+      const headersList = await headers()
+      const ip = headersList.get("x-forwarded-for") ?? "127.0.0.1"
+      const { success: rateLimitSuccess } = await submissionRateLimiter.limit(
+        `b2b_sub_${session.user.id}_${ip}`
+      )
 
-  if (!rateLimitSuccess) {
-    return { success: false, error: "Too many submission attempts. Please try again later." }
-  }
+      if (!rateLimitSuccess) {
+        return { success: false, error: "Too many submission attempts. Please try again later." }
+      }
+    } catch (rateLimitError) {
+      console.error("[B2B_RATE_LIMIT_ERROR]", rateLimitError)
+      // Redis unavailable — proceed without blocking submission.
+    }
 
-  const existingApp = await prisma.b2BApplication.findFirst({
-    where: { userId: session.user.id },
-    orderBy: { createdAt: "desc" },
-  })
+    const existingApp = await prisma.b2BApplication.findFirst({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "desc" },
+    })
 
-  if (existingApp && existingApp.status === ApplicationStatus.APPROVED) {
-    return { success: false, error: "Your account is already an approved B2B partner." }
-  }
+    if (existingApp && existingApp.status === ApplicationStatus.APPROVED) {
+      return { success: false, error: "Your account is already an approved B2B partner." }
+    }
 
-  if (existingApp && existingApp.status === ApplicationStatus.PENDING) {
-    return { success: false, error: "You already have an application under review." }
-  }
+    if (existingApp && existingApp.status === ApplicationStatus.PENDING) {
+      return { success: false, error: "You already have an application under review." }
+    }
 
-  if (existingApp && existingApp.status === ApplicationStatus.REJECTED) {
-    await prisma.b2BApplication.update({
-      where: { id: existingApp.id },
+    if (existingApp && existingApp.status === ApplicationStatus.REJECTED) {
+      await prisma.b2BApplication.update({
+        where: { id: existingApp.id },
+        data: {
+          companyName: input.companyName,
+          ntnNumber: input.ntnNumber,
+          taxCertificateUrl: input.taxCertificateUrl,
+          businessProofUrl: input.businessProofUrl,
+          notes: input.notes,
+          status: ApplicationStatus.PENDING,
+        },
+      })
+    } else {
+      await prisma.b2BApplication.create({
+        data: {
+          userId: session.user.id,
+          companyName: input.companyName,
+          ntnNumber: input.ntnNumber,
+          taxCertificateUrl: input.taxCertificateUrl,
+          businessProofUrl: input.businessProofUrl,
+          notes: input.notes,
+          status: ApplicationStatus.PENDING,
+        },
+      })
+    }
+
+    await prisma.user.update({
+      where: { id: session.user.id },
       data: {
         companyName: input.companyName,
         ntnNumber: input.ntnNumber,
-        taxCertificateUrl: input.taxCertificateUrl,
-        businessProofUrl: input.businessProofUrl,
-        notes: input.notes,
-        status: ApplicationStatus.PENDING,
       },
     })
-  } else {
-    await prisma.b2BApplication.create({
-      data: {
-        userId: session.user.id,
-        companyName: input.companyName,
-        ntnNumber: input.ntnNumber,
-        taxCertificateUrl: input.taxCertificateUrl,
-        businessProofUrl: input.businessProofUrl,
-        notes: input.notes,
-        status: ApplicationStatus.PENDING,
-      },
-    })
+
+    revalidatePath("/b2b/status")
+    revalidatePath("/admin/b2b-applications")
+    return { success: true }
+  } catch (error: unknown) {
+    console.error("[SUBMIT_B2B_APPLICATION_ERROR]", error)
+    const message = error instanceof Error ? error.message : "Failed to submit application."
+    return { success: false, error: message }
   }
-
-  await prisma.user.update({
-    where: { id: session.user.id },
-    data: {
-      companyName: input.companyName,
-      ntnNumber: input.ntnNumber,
-    },
-  })
-
-  revalidatePath("/b2b/status")
-  revalidatePath("/admin/b2b-applications")
-  return { success: true }
 }

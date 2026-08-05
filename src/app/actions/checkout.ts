@@ -36,16 +36,24 @@ type CreateOrderInput = z.infer<typeof createOrderSchema>;
 
 export async function createOrder(input: CreateOrderInput) {
   try {
-    // 1. Rate Limiting Check
-    const headersList = await headers();
-    const ip = headersList.get("x-forwarded-for") ?? "127.0.0.1";
-    const { success: rateLimitSuccess } = await rateLimiter.limit(`checkout_ip_${ip}`);
+    // 1. Rate Limiting Check — fails OPEN if Redis itself errors (network
+    // issue, misconfiguration), so an outage in a secondary defense-in-depth
+    // dependency can never block the site's core revenue-generating flow.
+    // Only an actual rate-limit-exceeded result blocks the request.
+    try {
+      const headersList = await headers();
+      const ip = headersList.get("x-forwarded-for") ?? "127.0.0.1";
+      const { success: rateLimitSuccess } = await rateLimiter.limit(`checkout_ip_${ip}`);
 
-    if (!rateLimitSuccess) {
-      return {
-        success: false,
-        error: "Too many checkout attempts. Please wait a moment and try again.",
-      };
+      if (!rateLimitSuccess) {
+        return {
+          success: false,
+          error: "Too many checkout attempts. Please wait a moment and try again.",
+        };
+      }
+    } catch (rateLimitError) {
+      console.error("[CHECKOUT_RATE_LIMIT_ERROR]", rateLimitError);
+      // Redis unavailable — proceed without blocking checkout.
     }
 
     // 2. Zod Server-side Validation

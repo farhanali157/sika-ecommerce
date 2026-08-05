@@ -1,7 +1,8 @@
 "use server"
 
 import { prisma } from "@/lib/prisma"
-import { Prisma } from "@prisma/client"
+import { Prisma, ProductStatus } from "@prisma/client"
+import { STOREFRONT_PRODUCT_FILTER } from "@/lib/product-queries"
 
 export type SearchFilters = {
   query?: string
@@ -14,6 +15,8 @@ export type SearchFilters = {
   limit?: number
 }
 
+const MAX_LIMIT = 50
+
 export async function searchProducts(filters: SearchFilters) {
   const {
     query,
@@ -24,19 +27,21 @@ export async function searchProducts(filters: SearchFilters) {
     limit = 12,
   } = filters
 
-  const skip = (page - 1) * limit
+  const safeLimit = Math.min(Math.max(limit, 1), MAX_LIMIT)
+  const skip = (page - 1) * safeLimit
 
   try {
-    const whereClause: Prisma.ProductWhereInput = {
-      isArchived: false,
-    }
+    // Reuse the same filter every other storefront page uses, so search
+    // results never include products that are archived or discontinued —
+    // a product hidden from browsing shouldn't still be findable by name.
+    const whereClause: Prisma.ProductWhereInput = { ...STOREFRONT_PRODUCT_FILTER }
 
     if (categoryId) {
       whereClause.categoryId = categoryId
     }
 
-    if (status) {
-      whereClause.status = status as Prisma.EnumProductStatusFilter
+    if (status && Object.values(ProductStatus).includes(status as ProductStatus)) {
+      whereClause.status = status as ProductStatus
     }
 
     if (applicationAreaId) {
@@ -63,7 +68,7 @@ export async function searchProducts(filters: SearchFilters) {
           tieredPrices: { orderBy: { minQty: "asc" } },
         },
         skip,
-        take: limit,
+        take: safeLimit,
         orderBy: { createdAt: "desc" },
       }),
       prisma.product.count({ where: whereClause }),
@@ -74,9 +79,9 @@ export async function searchProducts(filters: SearchFilters) {
       products,
       pagination: {
         total: totalCount,
-        totalPages: Math.ceil(totalCount / limit),
+        totalPages: Math.ceil(totalCount / safeLimit),
         currentPage: page,
-        limit,
+        limit: safeLimit,
       },
     }
   } catch (error) {
