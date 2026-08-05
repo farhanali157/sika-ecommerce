@@ -5,6 +5,7 @@ import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { SessionProvider } from "next-auth/react"
 import { auth } from "@/auth"
+import WhatsAppButton from "@/components/whatsapp-button"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -31,6 +32,9 @@ export default async function RootLayout({
             </div>
             <Footer />
           </div>
+          
+          {/* Floating WhatsApp button renders globally */}
+          <WhatsAppButton />
         </SessionProvider>
       </body>
     </html>
