@@ -16,7 +16,9 @@ export default async function ProductDetailPage({ params }: Props) {
   const { slug } = await params
   const session = await auth()
   const userRole = session?.user?.role
-  const isB2B = userRole === "B2B" || userRole === "ADMIN"
+  
+  // PATCH: Added SUPER_ADMIN to B2B visibility
+  const isB2B = userRole === "B2B" || userRole === "ADMIN" || userRole === "SUPER_ADMIN"
 
   let product = null
 

@@ -30,31 +30,64 @@ export async function POST(req: Request) {
     }
 
     const payload = JSON.parse(rawBody)
-    const { orderId, transactionId, status } = payload
+    
+    // PATCH: Extracted 'amount' from the payload to verify against the database
+    const { orderId, transactionId, status, amount } = payload
 
     if (!orderId || typeof orderId !== "string") {
       return NextResponse.json({ error: "Missing or invalid orderId" }, { status: 400 })
     }
 
+    // PATCH: Fetch the order first to verify its existence and total amount
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { totalAmount: true }
+    })
+
+    if (!order) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 })
+    }
+
     if (status === "SUCCESS") {
+      // PATCH: Fraud prevention - Verify the webhook amount matches the database order amount
+      // Note: Make sure the gateway amount and order amount are in the same format (e.g., both PKR or both in cents).
+      if (Number(order.totalAmount) !== Number(amount)) {
+        console.error(`[WEBHOOK_FRAUD_ALERT] Amount mismatch on order ${orderId}. Expected ${order.totalAmount}, got ${amount}`)
+        return NextResponse.json({ error: "Amount mismatch" }, { status: 400 })
+      }
+
+      // PATCH: Compare-and-Swap (CAS) pattern.
+      // We explicitly check `paymentStatus: "PENDING"` so a duplicate/delayed webhook can't overwrite a terminal state.
       const result = await prisma.order.updateMany({
-        where: { id: orderId },
+        where: { 
+          id: orderId,
+          paymentStatus: "PENDING"
+        },
         data: {
           paymentStatus: "PAID",
           status: "PROCESSING",
           paymentTxnId: transactionId,
         },
       })
+      
+      // If count is 0, the order was already processed. We still return 200 OK 
+      // so the payment gateway stops retrying, but we log it.
       if (result.count === 0) {
-        return NextResponse.json({ error: "Order not found" }, { status: 404 })
+        console.log(`[WEBHOOK_NOTE] Order ${orderId} SUCCESS ignored: Already processed or state changed.`)
       }
+      
     } else if (status === "FAILED") {
+      // PATCH: CAS pattern. Prevents a late FAILED webhook from flipping an already PAID order.
       const result = await prisma.order.updateMany({
-        where: { id: orderId },
+        where: { 
+          id: orderId,
+          paymentStatus: "PENDING" 
+        },
         data: { paymentStatus: "FAILED" },
       })
+      
       if (result.count === 0) {
-        return NextResponse.json({ error: "Order not found" }, { status: 404 })
+        console.log(`[WEBHOOK_NOTE] Order ${orderId} FAILED ignored: Already processed or state changed.`)
       }
     }
 

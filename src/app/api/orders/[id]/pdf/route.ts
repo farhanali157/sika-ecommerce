@@ -23,7 +23,7 @@ export async function GET(
 
     // Strict Ownership Enforcement: Users see their own orders, ADMINs can access any order
     const whereCondition =
-      userRole === "ADMIN"
+      userRole === "ADMIN" || userRole === "SUPER_ADMIN"
         ? { id: orderId }
         : { id: orderId, userId }
 

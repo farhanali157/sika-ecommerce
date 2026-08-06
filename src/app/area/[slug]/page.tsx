@@ -13,7 +13,9 @@ type AreaPageProps = {
 export default async function AreaPage({ params }: AreaPageProps) {
   const { slug } = await params
   const session = await auth()
-  const isB2B = session?.user?.role === "B2B" || session?.user?.role === "ADMIN"
+  
+  // PATCH: Added SUPER_ADMIN to B2B visibility
+  const isB2B = session?.user?.role === "B2B" || session?.user?.role === "ADMIN" || session?.user?.role === "SUPER_ADMIN"
 
   let area = null
   try {

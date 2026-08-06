@@ -25,7 +25,8 @@ export default function LoginPage() {
         const session = await getSession()
         const role = session?.user?.role
 
-        if (role === "ADMIN") {
+        // PATCH: Added SUPER_ADMIN to dashboard redirect
+        if (role === "ADMIN" || role === "SUPER_ADMIN") {
           window.location.assign("/admin")
         } else {
           window.location.assign("/")
