@@ -90,6 +90,24 @@ export async function cancelCustomerOrder(orderId: string) {
     const session = await requireCustomerSession()
     const userId = session.user.id
 
+    // PATCH: Pre-fetch to verify ownership and check payment status
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, userId, isDeleted: false },
+      select: { paymentStatus: true }
+    })
+
+    if (!order) {
+      return { success: false, error: "Order not found." }
+    }
+
+    // PATCH: Block direct self-cancellation if order is already paid
+    if (order.paymentStatus === "PAID") {
+      return { 
+        success: false, 
+        error: "This order has already been paid for. Please contact support to initiate a cancellation and refund." 
+      }
+    }
+
     return await prisma.$transaction(async (tx) => {
       // Compare-and-swap: Atomic condition enforced at database write time
       const updateResult = await tx.order.updateMany({
@@ -97,6 +115,7 @@ export async function cancelCustomerOrder(orderId: string) {
           id: orderId,
           userId, // Ownership check
           status: { in: [OrderStatus.PENDING, OrderStatus.PROCESSING] }, // Write-time state guard
+          paymentStatus: { not: "PAID" }, // Write-time financial guard
           isDeleted: false
         },
         data: {

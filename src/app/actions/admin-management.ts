@@ -5,9 +5,23 @@ import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 import { Role } from "@prisma/client"
 import { revalidatePath } from "next/cache"
+import { z } from "zod"
 
-// Explicitly type as Role[] so .includes accepts any valid Role enum value
 const VALID_STAFF_ROLES: Role[] = [Role.ADMIN, Role.SUPER_ADMIN]
+
+// PATCH: Enforce strict password requirements for administrative accounts
+const createStaffSchema = z.object({
+  name: z.string().trim().min(2, "Name must be at least 2 characters"),
+  email: z.string().trim().toLowerCase().email("Invalid email address"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(72, "Password is too long")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number"),
+  role: z.nativeEnum(Role).optional().default(Role.ADMIN),
+})
 
 export async function createSubAdmin(formData: FormData) {
   try {
@@ -16,14 +30,23 @@ export async function createSubAdmin(formData: FormData) {
       return { success: false, error: "Unauthorized: Super Admin access required." }
     }
 
-    const name = formData.get("name") as string
-    const email = (formData.get("email") as string)?.toLowerCase().trim()
-    const password = formData.get("password") as string
-    const requestedRole = formData.get("role") as Role
-
-    if (!name || !email || !password) {
-      return { success: false, error: "All fields are required." }
+    const inputData = {
+      name: formData.get("name"),
+      email: formData.get("email"),
+      password: formData.get("password"),
+      role: formData.get("role"),
     }
+
+    const parsed = createStaffSchema.safeParse(inputData)
+    
+    if (!parsed.success) {
+      return { 
+        success: false, 
+        error: parsed.error.issues[0]?.message ?? "Invalid account details provided." 
+      }
+    }
+
+    const { name, email, password, role: requestedRole } = parsed.data
 
     const targetRole = VALID_STAFF_ROLES.includes(requestedRole)
       ? requestedRole
