@@ -13,16 +13,21 @@ export function AnnouncementBar({
 }) {
   if (!isActive || !text) return null
 
+  // Create an array to repeat the message enough times to fill any screen size seamlessly
+  const items = Array.from({ length: 10 }, (_, i) => i)
+
   return (
     <div
-      className="sticky top-0 z-50 overflow-hidden py-2 text-xs font-bold tracking-widest uppercase whitespace-nowrap shadow-xs"
+      className="w-full overflow-hidden py-2 text-xs font-bold tracking-widest uppercase whitespace-nowrap shadow-xs select-none"
       style={{ backgroundColor: bgColor, color: textColor }}
     >
-      <div className="inline-flex animate-marquee gap-16">
-        <span>{text}</span>
-        <span>{text}</span>
-        <span>{text}</span>
-        <span>{text}</span>
+      <div className="flex w-max animate-marquee">
+        {items.map((i) => (
+          <div key={i} className="flex items-center shrink-0">
+            <span className="mx-8">{text}</span>
+            <span className="mx-8 text-amber-400">•</span>
+          </div>
+        ))}
       </div>
 
       <style jsx>{`
@@ -35,9 +40,9 @@ export function AnnouncementBar({
           }
         }
         .animate-marquee {
-          display: inline-flex;
-          width: 200%;
-          animation: marquee 25s linear infinite;
+          display: flex;
+          width: max-content;
+          animation: marquee 35s linear infinite;
         }
         .animate-marquee:hover {
           animation-play-state: paused;

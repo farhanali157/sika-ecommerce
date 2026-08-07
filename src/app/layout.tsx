@@ -28,17 +28,19 @@ export default async function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <SessionProvider session={session}>
-          <AnnouncementBar
-            text={settings?.announcementText || ""}
-            bgColor={settings?.announcementBgColor || "#171717"}
-            textColor={settings?.announcementTextColor || "#ffffff"}
-            isActive={settings?.isAnnouncementActive ?? false}
-          />
-          <div className="relative flex min-h-screen flex-col justify-between">
-            <div>
-              <Navbar />
-              <main>{children}</main>
-            </div>
+          {/* Sticky Header Wrapper locking both Announcement Bar and Navbar */}
+          <header className="sticky top-0 z-50 w-full shadow-sm">
+            <AnnouncementBar
+              text={settings?.announcementText || ""}
+              bgColor={settings?.announcementBgColor || "#171717"}
+              textColor={settings?.announcementTextColor || "#ffffff"}
+              isActive={settings?.isAnnouncementActive ?? false}
+            />
+            <Navbar />
+          </header>
+
+          <div className="relative flex min-h-[calc(100vh-120px)] flex-col justify-between">
+            <main>{children}</main>
             <Footer />
           </div>
 
