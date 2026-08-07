@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma"
 import { serializeDecimals } from "@/lib/serialize"
 import { Plus, Package } from "lucide-react"
 import { ProductRowActions } from "./product-row-actions"
-import { StorewideDiscountController } from "../components/storewide-discount-controller"
 
 export default async function AdminProductsPage() {
   const rawProducts = await prisma.product.findMany({
@@ -47,9 +46,6 @@ export default async function AdminProductsPage() {
             <Plus className="h-4 w-4" /> Add New Product
           </Link>
         </div>
-
-        {/* Storewide Sale Controller Module */}
-        <StorewideDiscountController />
 
         {/* Product Table */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">

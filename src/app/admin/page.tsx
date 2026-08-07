@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { auth } from "@/auth"
 import { Role } from "@prisma/client"
-import { Package, Plus, ShoppingBag, ArrowRight, FileCheck, ShieldCheck } from "lucide-react"
+import { Package, Plus, ShoppingBag, ArrowRight, FileCheck, ShieldCheck, Tag } from "lucide-react"
 
 export default async function AdminDashboardPage() {
   const session = await auth()
@@ -40,6 +40,28 @@ export default async function AdminDashboardPage() {
                 className="bg-amber-500 hover:bg-amber-600 text-black text-xs font-bold py-2 px-3 rounded-lg transition flex items-center gap-1"
               >
                 <Plus className="h-3.5 w-3.5" /> Add New
+              </Link>
+            </div>
+          </div>
+
+          {/* Promotions & Marketing Card (New) */}
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col justify-between hover:border-amber-400 transition">
+            <div>
+              <div className="h-10 w-10 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700 mb-4">
+                <Tag className="h-5 w-5" />
+              </div>
+              <h2 className="text-lg font-bold text-gray-900">Promotions & Marquee</h2>
+              <p className="text-xs text-gray-500 mt-1">
+                Configure storewide discount percentage sales and customize scrolling multi-message announcement tickers.
+              </p>
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-gray-100">
+              <Link
+                href="/admin/promotions"
+                className="w-full bg-neutral-900 hover:bg-black text-white text-xs font-bold py-2 px-3 rounded-lg text-center transition inline-flex items-center justify-center gap-1"
+              >
+                Manage Promotions <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
           </div>
