@@ -45,6 +45,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
         description: true,
         images: true,
         categoryId: true,
+        discountPercent: true,
         category: {
           select: { id: true, name: true, slug: true },
         },

@@ -14,6 +14,7 @@ type ProductItem = {
   description: string
   images: string[]
   categoryId: string
+  discountPercent?: number | null // Added discount property
   category: { id: string; name: string; slug: string }
   applicationAreas: { id: string; name: string; slug: string }[]
   tieredPrices: { id: string; minQty: number; price: number | string | Prisma.Decimal }[]
@@ -150,15 +151,30 @@ export function ProductCatalogClient({
                   ? rawRetailPrice
                   : Number(rawRetailPrice)
 
+              // Discount Logic Implementation
+              const discount = product.discountPercent || 0
+              const hasDiscount = discount > 0
+              const finalPrice = hasDiscount 
+                ? retailPrice * (1 - discount / 100) 
+                : retailPrice
+
               const mainImage = product.images?.[0] || null
 
               return (
                 <div
                   key={product.id}
-                  className="group rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between"
+                  className="group rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between relative"
                 >
                   <div>
                     <div className="relative aspect-square w-full rounded-lg bg-gray-100 mb-4 overflow-hidden border border-gray-100 flex items-center justify-center">
+                      
+                      {/* Discount Badge */}
+                      {hasDiscount && (
+                        <div className="absolute top-2 right-2 z-10 bg-red-50 border border-red-100 text-red-600 text-[10px] font-black px-2 py-1 rounded shadow-sm tracking-wide">
+                          {discount}% OFF
+                        </div>
+                      )}
+
                       {mainImage ? (
                         <Image
                           src={mainImage}
@@ -189,9 +205,17 @@ export function ProductCatalogClient({
                       <span className="text-[10px] text-gray-400 block uppercase">
                         Starting Price
                       </span>
-                      <span className="text-base font-black text-gray-900">
-                        Rs. {retailPrice.toLocaleString()}
-                      </span>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-base font-black text-gray-900">
+                          Rs. {finalPrice.toLocaleString()}
+                        </span>
+                        {/* Strikethrough original price if discounted */}
+                        {hasDiscount && (
+                          <span className="text-[10px] text-gray-400 line-through font-medium">
+                            Rs. {retailPrice.toLocaleString()}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <Link
                       href={`/product/${product.slug}`}
