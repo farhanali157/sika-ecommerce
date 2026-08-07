@@ -3,13 +3,17 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { applyStorewideDiscountAction, updateAnnouncementAction } from "@/app/actions/discount-actions"
-import { Tag, Megaphone } from "lucide-react"
+import { Tag, Megaphone, Plus, Trash2 } from "lucide-react"
+
+type AnnouncementItem = {
+  text: string
+  textColor: string
+}
 
 type Props = {
   initialSettings?: {
     announcementMessages: string
     announcementBgColor: string
-    announcementTextColor: string
     isAnnouncementActive: boolean
   } | null
 }
@@ -18,25 +22,44 @@ export function StorewideDiscountController({ initialSettings }: Props) {
   const router = useRouter()
   const [discount, setDiscount] = useState("0")
 
-  // Parse initial messages or fallback to 3 defaults
-  let parsedMsgs = ["🎉 SPECIAL SALE LIVE NOW!", "🚚 FREE SHIPPING NATIONWIDE", "🏗️ SIKA QUALITY ASSURED"]
+  // Parse initial messages or fallback to 1 default
+  let parsedMsgs: AnnouncementItem[] = [{ text: "🎉 SPECIAL SALE LIVE NOW!", textColor: "#ffffff" }]
   try {
     if (initialSettings?.announcementMessages) {
-      parsedMsgs = JSON.parse(initialSettings.announcementMessages)
+      const decoded = JSON.parse(initialSettings.announcementMessages)
+      if (Array.isArray(decoded)) {
+        parsedMsgs = decoded.map((m) =>
+          typeof m === "string" ? { text: m, textColor: "#ffffff" } : m
+        )
+      }
     }
   } catch {}
 
-  const [msg1, setMsg1] = useState(parsedMsgs[0] || "")
-  const [msg2, setMsg2] = useState(parsedMsgs[1] || "")
-  const [msg3, setMsg3] = useState(parsedMsgs[2] || "")
-
+  const [messages, setMessages] = useState<AnnouncementItem[]>(parsedMsgs)
   const [bgColor, setBgColor] = useState(initialSettings?.announcementBgColor || "#171717")
-  const [textColor, setTextColor] = useState(initialSettings?.announcementTextColor || "#ffffff")
   const [isActive, setIsActive] = useState(initialSettings?.isAnnouncementActive ?? true)
 
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState("")
   const [isError, setIsError] = useState(false)
+
+  const handleAddMessage = () => {
+    if (messages.length < 6) {
+      setMessages([...messages, { text: "", textColor: "#ffffff" }])
+    }
+  }
+
+  const handleRemoveMessage = (index: number) => {
+    if (messages.length > 1) {
+      setMessages(messages.filter((_, i) => i !== index))
+    }
+  }
+
+  const handleMessageChange = (index: number, field: keyof AnnouncementItem, value: string) => {
+    const updated = [...messages]
+    updated[index][field] = value
+    setMessages(updated)
+  }
 
   const handleApplyDiscount = async () => {
     setLoading(true)
@@ -75,12 +98,17 @@ export function StorewideDiscountController({ initialSettings }: Props) {
     setMessage("")
     setIsError(false)
 
-    const combinedMessages = JSON.stringify([msg1, msg2, msg3].filter((m) => m.trim() !== ""))
+    const validMessages = messages.filter((m) => m.text.trim() !== "")
+    if (validMessages.length === 0) {
+      setMessage("Please add at least one announcement message.")
+      setIsError(true)
+      setLoading(false)
+      return
+    }
 
     const res = await updateAnnouncementAction({
-      announcementMessages: combinedMessages,
+      announcementMessages: JSON.stringify(validMessages),
       announcementBgColor: bgColor,
-      announcementTextColor: textColor,
       isAnnouncementActive: isActive,
     })
 
@@ -149,73 +177,78 @@ export function StorewideDiscountController({ initialSettings }: Props) {
 
       {/* Announcement Bar Controller Box */}
       <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-        <div className="flex items-center gap-2 border-b border-gray-100 pb-4 mb-4">
-          <Megaphone className="h-5 w-5 text-amber-500" />
-          <h2 className="text-lg font-black text-gray-900 uppercase">
-            Scrolling Announcement Bar (3 Messages)
-          </h2>
+        <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-4">
+          <div className="flex items-center gap-2">
+            <Megaphone className="h-5 w-5 text-amber-500" />
+            <h2 className="text-lg font-black text-gray-900 uppercase">
+              Scrolling Announcement Bar ({messages.length}/6)
+            </h2>
+          </div>
+          {messages.length < 6 && (
+            <button
+              type="button"
+              onClick={handleAddMessage}
+              className="inline-flex items-center gap-1 text-xs font-bold bg-amber-100 hover:bg-amber-200 text-amber-900 px-3 py-1.5 rounded-lg transition"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add Message
+            </button>
+          )}
         </div>
 
-        <form onSubmit={handleSaveAnnouncement} className="space-y-3">
-          <div>
-            <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Message 1</label>
-            <input
-              type="text"
-              value={msg1}
-              onChange={(e) => setMsg1(e.target.value)}
-              placeholder="e.g. 🔥 SPECIAL SALE LIVE NOW!"
-              className="w-full p-2 text-xs rounded-lg border border-gray-300 font-medium focus:outline-none focus:border-amber-500"
-            />
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Message 2</label>
-            <input
-              type="text"
-              value={msg2}
-              onChange={(e) => setMsg2(e.target.value)}
-              placeholder="e.g. 🚚 FREE NATIONWIDE SHIPPING"
-              className="w-full p-2 text-xs rounded-lg border border-gray-300 font-medium focus:outline-none focus:border-amber-500"
-            />
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Message 3</label>
-            <input
-              type="text"
-              value={msg3}
-              onChange={(e) => setMsg3(e.target.value)}
-              placeholder="e.g. 🏗️ 100% AUTHENTIC SIKA PRODUCTS"
-              className="w-full p-2 text-xs rounded-lg border border-gray-300 font-medium focus:outline-none focus:border-amber-500"
-            />
+        <form onSubmit={handleSaveAnnouncement} className="space-y-4">
+          <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+            {messages.map((item, index) => (
+              <div key={index} className="flex items-center gap-2 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                <div className="flex-1 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-gray-600 uppercase">
+                      Message {index + 1}
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-bold text-gray-500">Text Color:</span>
+                      <input
+                        type="color"
+                        value={item.textColor}
+                        onChange={(e) => handleMessageChange(index, "textColor", e.target.value)}
+                        className="h-6 w-8 rounded border cursor-pointer p-0.5 bg-white"
+                      />
+                    </div>
+                  </div>
+                  <input
+                    type="text"
+                    value={item.text}
+                    onChange={(e) => handleMessageChange(index, "text", e.target.value)}
+                    placeholder="e.g. 🔥 SPECIAL SALE LIVE NOW!"
+                    className="w-full p-2 text-xs rounded-md border border-gray-300 font-medium focus:outline-none focus:border-amber-500 bg-white"
+                    required
+                  />
+                </div>
+                {messages.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveMessage(index)}
+                    className="text-gray-400 hover:text-red-600 transition p-1.5"
+                    title="Remove message"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
 
-          <div className="grid grid-cols-2 gap-4 pt-1">
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                Bar Background
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={bgColor}
-                  onChange={(e) => setBgColor(e.target.value)}
-                  className="h-8 w-10 rounded border cursor-pointer p-0.5 bg-white"
-                />
-                <span className="text-xs font-mono uppercase font-semibold">{bgColor}</span>
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                Text Color
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={textColor}
-                  onChange={(e) => setTextColor(e.target.value)}
-                  className="h-8 w-10 rounded border cursor-pointer p-0.5 bg-white"
-                />
-                <span className="text-xs font-mono uppercase font-semibold">{textColor}</span>
-              </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+              Bar Background Color
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={bgColor}
+                onChange={(e) => setBgColor(e.target.value)}
+                className="h-9 w-12 rounded border cursor-pointer p-1 bg-white"
+              />
+              <span className="text-xs font-mono uppercase font-semibold">{bgColor}</span>
             </div>
           </div>
 

@@ -1,30 +1,35 @@
 "use client"
 
+export type AnnouncementItem = {
+  text: string
+  textColor: string
+}
+
 export function AnnouncementBar({
   messages,
   bgColor,
-  textColor,
   isActive,
 }: {
-  messages: string[]
+  messages: AnnouncementItem[]
   bgColor: string
-  textColor: string
   isActive: boolean
 }) {
   if (!isActive || !messages || messages.length === 0) return null
 
-  // Duplicate the array sequences to create a seamless infinite marquee track
+  // Duplicate the array sequence to create a seamless infinite marquee track
   const sequence = [...messages, ...messages, ...messages, ...messages]
 
   return (
     <div
       className="w-full overflow-hidden py-2 text-xs font-bold tracking-widest uppercase whitespace-nowrap shadow-xs select-none"
-      style={{ backgroundColor: bgColor, color: textColor }}
+      style={{ backgroundColor: bgColor }}
     >
       <div className="flex w-max animate-marquee">
-        {sequence.map((msg, index) => (
+        {sequence.map((item, index) => (
           <div key={index} className="flex items-center shrink-0">
-            <span className="mx-8">{msg}</span>
+            <span className="mx-8" style={{ color: item.textColor || "#ffffff" }}>
+              {item.text}
+            </span>
             <span className="mx-8 text-amber-400">•</span>
           </div>
         ))}

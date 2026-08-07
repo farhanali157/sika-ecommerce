@@ -7,7 +7,7 @@ import { SessionProvider } from "next-auth/react"
 import { auth } from "@/auth"
 import WhatsAppButton from "@/components/whatsapp-button"
 import { prisma } from "@/lib/prisma"
-import { AnnouncementBar } from "@/components/announcement-bar"
+import { AnnouncementBar, AnnouncementItem } from "@/components/announcement-bar"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -24,13 +24,18 @@ export default async function RootLayout({
   const session = await auth()
   const settings = await prisma.storeSetting.findFirst().catch(() => null)
 
-  let announcementMessages: string[] = []
+  let announcementMessages: AnnouncementItem[] = []
   try {
     if (settings?.announcementMessages) {
-      announcementMessages = JSON.parse(settings.announcementMessages)
+      const parsed = JSON.parse(settings.announcementMessages)
+      if (Array.isArray(parsed)) {
+        announcementMessages = parsed.map((m) =>
+          typeof m === "string" ? { text: m, textColor: "#ffffff" } : m
+        )
+      }
     }
   } catch {
-    announcementMessages = ["🎉 SIKA STOREWIDE SALE LIVE NOW!"]
+    announcementMessages = [{ text: "🎉 SIKA STOREWIDE SALE LIVE NOW!", textColor: "#ffffff" }]
   }
 
   return (
@@ -42,7 +47,6 @@ export default async function RootLayout({
             <AnnouncementBar
               messages={announcementMessages}
               bgColor={settings?.announcementBgColor || "#171717"}
-              textColor={settings?.announcementTextColor || "#ffffff"}
               isActive={settings?.isAnnouncementActive ?? false}
             />
             <Navbar />

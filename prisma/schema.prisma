@@ -230,9 +230,8 @@ model OrderItem {
 
 model StoreSetting {
   id                   String   @id @default(cuid())
-  announcementMessages String   @default("[\"🎉 SIKA STOREWIDE SALE LIVE!\", \"🚚 FREE DELIVERY NATIONWIDE\", \"🏗️ PROFESSIONAL GRADE SOLUTIONS\"]")
+  announcementMessages String   @default("[{\"text\":\"🎉 SIKA STOREWIDE SALE LIVE!\",\"textColor\":\"#ffffff\"}]")
   announcementBgColor  String   @default("#171717")
-  announcementTextColor String  @default("#ffffff")
   isAnnouncementActive Boolean  @default(true)
   updatedAt            DateTime @updatedAt
 }
