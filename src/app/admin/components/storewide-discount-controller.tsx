@@ -7,7 +7,7 @@ import { Tag, Megaphone } from "lucide-react"
 
 type Props = {
   initialSettings?: {
-    announcementText: string
+    announcementMessages: string
     announcementBgColor: string
     announcementTextColor: string
     isAnnouncementActive: boolean
@@ -18,8 +18,18 @@ export function StorewideDiscountController({ initialSettings }: Props) {
   const router = useRouter()
   const [discount, setDiscount] = useState("0")
 
-  // Announcement Bar States
-  const [text, setText] = useState(initialSettings?.announcementText || "🎉 SPECIAL SALE LIVE NOW!")
+  // Parse initial messages or fallback to 3 defaults
+  let parsedMsgs = ["🎉 SPECIAL SALE LIVE NOW!", "🚚 FREE SHIPPING NATIONWIDE", "🏗️ SIKA QUALITY ASSURED"]
+  try {
+    if (initialSettings?.announcementMessages) {
+      parsedMsgs = JSON.parse(initialSettings.announcementMessages)
+    }
+  } catch {}
+
+  const [msg1, setMsg1] = useState(parsedMsgs[0] || "")
+  const [msg2, setMsg2] = useState(parsedMsgs[1] || "")
+  const [msg3, setMsg3] = useState(parsedMsgs[2] || "")
+
   const [bgColor, setBgColor] = useState(initialSettings?.announcementBgColor || "#171717")
   const [textColor, setTextColor] = useState(initialSettings?.announcementTextColor || "#ffffff")
   const [isActive, setIsActive] = useState(initialSettings?.isAnnouncementActive ?? true)
@@ -34,7 +44,6 @@ export function StorewideDiscountController({ initialSettings }: Props) {
     setIsError(false)
 
     const parsedDiscount = parseFloat(discount)
-
     if (isNaN(parsedDiscount)) {
       setMessage("Please enter a valid number")
       setIsError(true)
@@ -43,7 +52,6 @@ export function StorewideDiscountController({ initialSettings }: Props) {
     }
 
     const res = await applyStorewideDiscountAction(parsedDiscount)
-
     if (!res.success) {
       setMessage(typeof res.error === "string" ? res.error : "Failed to apply storewide discount")
       setIsError(true)
@@ -67,8 +75,10 @@ export function StorewideDiscountController({ initialSettings }: Props) {
     setMessage("")
     setIsError(false)
 
+    const combinedMessages = JSON.stringify([msg1, msg2, msg3].filter((m) => m.trim() !== ""))
+
     const res = await updateAnnouncementAction({
-      announcementText: text,
+      announcementMessages: combinedMessages,
       announcementBgColor: bgColor,
       announcementTextColor: textColor,
       isAnnouncementActive: isActive,
@@ -142,36 +152,53 @@ export function StorewideDiscountController({ initialSettings }: Props) {
         <div className="flex items-center gap-2 border-b border-gray-100 pb-4 mb-4">
           <Megaphone className="h-5 w-5 text-amber-500" />
           <h2 className="text-lg font-black text-gray-900 uppercase">
-            Scrolling Announcement Bar
+            Scrolling Announcement Bar (3 Messages)
           </h2>
         </div>
 
-        <form onSubmit={handleSaveAnnouncement} className="space-y-4">
+        <form onSubmit={handleSaveAnnouncement} className="space-y-3">
           <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-              Ticker Message
-            </label>
+            <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Message 1</label>
             <input
               type="text"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="e.g. 🔥 FREE SHIPPING ON ORDERS OVER RS. 5,000!"
-              className="w-full p-2.5 text-xs rounded-lg border border-gray-300 font-medium focus:outline-none focus:border-amber-500"
-              required
+              value={msg1}
+              onChange={(e) => setMsg1(e.target.value)}
+              placeholder="e.g. 🔥 SPECIAL SALE LIVE NOW!"
+              className="w-full p-2 text-xs rounded-lg border border-gray-300 font-medium focus:outline-none focus:border-amber-500"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Message 2</label>
+            <input
+              type="text"
+              value={msg2}
+              onChange={(e) => setMsg2(e.target.value)}
+              placeholder="e.g. 🚚 FREE NATIONWIDE SHIPPING"
+              className="w-full p-2 text-xs rounded-lg border border-gray-300 font-medium focus:outline-none focus:border-amber-500"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">Message 3</label>
+            <input
+              type="text"
+              value={msg3}
+              onChange={(e) => setMsg3(e.target.value)}
+              placeholder="e.g. 🏗️ 100% AUTHENTIC SIKA PRODUCTS"
+              className="w-full p-2 text-xs rounded-lg border border-gray-300 font-medium focus:outline-none focus:border-amber-500"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 pt-1">
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                Bar Background Color
+                Bar Background
               </label>
               <div className="flex items-center gap-2">
                 <input
                   type="color"
                   value={bgColor}
                   onChange={(e) => setBgColor(e.target.value)}
-                  className="h-9 w-12 rounded border cursor-pointer p-1 bg-white"
+                  className="h-8 w-10 rounded border cursor-pointer p-0.5 bg-white"
                 />
                 <span className="text-xs font-mono uppercase font-semibold">{bgColor}</span>
               </div>
@@ -185,7 +212,7 @@ export function StorewideDiscountController({ initialSettings }: Props) {
                   type="color"
                   value={textColor}
                   onChange={(e) => setTextColor(e.target.value)}
-                  className="h-9 w-12 rounded border cursor-pointer p-1 bg-white"
+                  className="h-8 w-10 rounded border cursor-pointer p-0.5 bg-white"
                 />
                 <span className="text-xs font-mono uppercase font-semibold">{textColor}</span>
               </div>

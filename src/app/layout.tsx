@@ -24,6 +24,15 @@ export default async function RootLayout({
   const session = await auth()
   const settings = await prisma.storeSetting.findFirst().catch(() => null)
 
+  let announcementMessages: string[] = []
+  try {
+    if (settings?.announcementMessages) {
+      announcementMessages = JSON.parse(settings.announcementMessages)
+    }
+  } catch {
+    announcementMessages = ["🎉 SIKA STOREWIDE SALE LIVE NOW!"]
+  }
+
   return (
     <html lang="en">
       <body className={inter.className}>
@@ -31,7 +40,7 @@ export default async function RootLayout({
           {/* Sticky Header Wrapper locking both Announcement Bar and Navbar */}
           <header className="sticky top-0 z-50 w-full shadow-sm">
             <AnnouncementBar
-              text={settings?.announcementText || ""}
+              messages={announcementMessages}
               bgColor={settings?.announcementBgColor || "#171717"}
               textColor={settings?.announcementTextColor || "#ffffff"}
               isActive={settings?.isAnnouncementActive ?? false}

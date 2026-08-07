@@ -1,20 +1,20 @@
 "use client"
 
 export function AnnouncementBar({
-  text,
+  messages,
   bgColor,
   textColor,
   isActive,
 }: {
-  text: string
+  messages: string[]
   bgColor: string
   textColor: string
   isActive: boolean
 }) {
-  if (!isActive || !text) return null
+  if (!isActive || !messages || messages.length === 0) return null
 
-  // Create an array to repeat the message enough times to fill any screen size seamlessly
-  const items = Array.from({ length: 10 }, (_, i) => i)
+  // Duplicate the array sequences to create a seamless infinite marquee track
+  const sequence = [...messages, ...messages, ...messages, ...messages]
 
   return (
     <div
@@ -22,9 +22,9 @@ export function AnnouncementBar({
       style={{ backgroundColor: bgColor, color: textColor }}
     >
       <div className="flex w-max animate-marquee">
-        {items.map((i) => (
-          <div key={i} className="flex items-center shrink-0">
-            <span className="mx-8">{text}</span>
+        {sequence.map((msg, index) => (
+          <div key={index} className="flex items-center shrink-0">
+            <span className="mx-8">{msg}</span>
             <span className="mx-8 text-amber-400">•</span>
           </div>
         ))}

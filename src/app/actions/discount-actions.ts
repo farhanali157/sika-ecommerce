@@ -52,7 +52,11 @@ export async function getStoreSettingsAction() {
     if (!settings) {
       const newSettings = await prisma.storeSetting.create({
         data: {
-          announcementText: "🎉 SIKA STOREWIDE SALE LIVE NOW!",
+          announcementMessages: JSON.stringify([
+            "🎉 SIKA STOREWIDE SALE LIVE NOW!",
+            "🚚 FREE NATIONWIDE SHIPPING AVAILABLE",
+            "🏗️ PROFESSIONAL GRADE CONSTRUCTION SOLUTIONS",
+          ]),
           announcementBgColor: "#171717",
           announcementTextColor: "#ffffff",
           isAnnouncementActive: true,
@@ -67,7 +71,7 @@ export async function getStoreSettingsAction() {
 }
 
 export async function updateAnnouncementAction(data: {
-  announcementText: string
+  announcementMessages: string
   announcementBgColor: string
   announcementTextColor: string
   isAnnouncementActive: boolean
