@@ -24,10 +24,12 @@ export function ProductFormClient({ categories, applicationAreas }: Props) {
   const [description, setDescription] = useState("")
   const [packSize, setPackSize] = useState("")
   const [categoryId, setCategoryId] = useState("")
-  const [retailPrice, setRetailPrice] = useState("")
-  const [b2bPrice, setB2bPrice] = useState("")
   const [tdsUrl, setTdsUrl] = useState("")
   const [sdsUrl, setSdsUrl] = useState("")
+
+  const [tieredPrices, setTieredPrices] = useState<{ minQty: string; price: string }[]>([
+    { minQty: "1", price: "" },
+  ])
 
   const [imageUrls, setImageUrls] = useState<string[]>([""])
   const [selectedAreas, setSelectedAreas] = useState<string[]>([])
@@ -42,9 +44,16 @@ export function ProductFormClient({ categories, applicationAreas }: Props) {
     )
   }
 
+  const handleAddTier = () => setTieredPrices([...tieredPrices, { minQty: "", price: "" }])
+  const handleRemoveTier = (idx: number) => setTieredPrices(tieredPrices.filter((_, i) => i !== idx))
+  const handleTierChange = (idx: number, field: "minQty" | "price", val: string) => {
+    const updated = [...tieredPrices]
+    updated[idx][field] = val
+    setTieredPrices(updated)
+  }
+
   const handleAddImageUrl = () => setImageUrls([...imageUrls, ""])
-  const handleRemoveImageUrl = (idx: number) =>
-    setImageUrls(imageUrls.filter((_, i) => i !== idx))
+  const handleRemoveImageUrl = (idx: number) => setImageUrls(imageUrls.filter((_, i) => i !== idx))
   const handleImageUrlChange = (idx: number, val: string) => {
     const updated = [...imageUrls]
     updated[idx] = val
@@ -52,9 +61,12 @@ export function ProductFormClient({ categories, applicationAreas }: Props) {
   }
 
   const toggleArea = (id: string) => {
-    setSelectedAreas((prev) =>
-      prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]
-    )
+    setSelectedAreas((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter((a) => a !== id)
+      }
+      return [...prev, id]
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -70,6 +82,16 @@ export function ProductFormClient({ categories, applicationAreas }: Props) {
       return
     }
 
+    const parsedTiers = tieredPrices
+      .map((t) => ({ minQty: parseInt(t.minQty), price: parseFloat(t.price) }))
+      .filter((t) => !isNaN(t.minQty) && !isNaN(t.price))
+
+    if (parsedTiers.length === 0) {
+      setErrorMessage("At least one valid pricing tier is required.")
+      setLoading(false)
+      return
+    }
+
     const payload = {
       name,
       slug,
@@ -77,8 +99,7 @@ export function ProductFormClient({ categories, applicationAreas }: Props) {
       description,
       packSize,
       categoryId,
-      retailPrice: parseFloat(retailPrice),
-      b2bPrice: b2bPrice ? parseFloat(b2bPrice) : undefined,
+      tieredPrices: parsedTiers,
       images: validImages,
       tdsUrl: tdsUrl || undefined,
       sdsUrl: sdsUrl || undefined,
@@ -88,11 +109,11 @@ export function ProductFormClient({ categories, applicationAreas }: Props) {
     const res = await createProductAction(payload)
 
     if (!res.success) {
-      setErrorMessage(
-        typeof res.error === "string"
-          ? res.error
-          : "Please check form values and try again."
-      )
+      let msg = "Please check form values and try again."
+      if (typeof res.error === "string") {
+        msg = res.error
+      }
+      setErrorMessage(msg)
       setLoading(false)
       return
     }
@@ -128,7 +149,6 @@ export function ProductFormClient({ categories, applicationAreas }: Props) {
         </div>
       )}
 
-      {/* General Information */}
       <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
         <h2 className="text-sm font-bold uppercase tracking-wider text-gray-900 border-b pb-2">
           General Information
@@ -203,57 +223,78 @@ export function ProductFormClient({ categories, applicationAreas }: Props) {
         </div>
       </div>
 
-      {/* Pricing & Category */}
-      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
+      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-6">
         <h2 className="text-sm font-bold uppercase tracking-wider text-gray-900 border-b pb-2">
           Pricing & Category
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-              Category *
-            </label>
-            <select
-              required
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full p-2.5 text-sm rounded-lg border border-gray-300 bg-white focus:outline-none focus:border-amber-500"
-            >
-              <option value="">Select Category</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
+        
+        <div>
+          <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+            Category *
+          </label>
+          <select
+            required
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            className="w-full md:w-1/2 p-2.5 text-sm rounded-lg border border-gray-300 bg-white focus:outline-none focus:border-amber-500"
+          >
+            <option value="">Select Category</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-gray-700 uppercase mb-2">
+            Volume Pricing Tiers *
+          </label>
+          <div className="space-y-3">
+            {tieredPrices.map((tier, idx) => (
+              <div key={idx} className="flex gap-4 items-center">
+                <div className="flex-1 max-w-50">
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={tier.minQty}
+                    onChange={(e) => handleTierChange(idx, "minQty", e.target.value)}
+                    placeholder="Min Qty (e.g. 1)"
+                    className="w-full p-2.5 text-sm rounded-lg border border-gray-300 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div className="flex-1 max-w-62.5">
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={tier.price}
+                    onChange={(e) => handleTierChange(idx, "price", e.target.value)}
+                    placeholder="Price in PKR"
+                    className="w-full p-2.5 text-sm rounded-lg border border-gray-300 focus:outline-none focus:border-amber-500 font-bold"
+                  />
+                </div>
+                {tieredPrices.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveTier(idx)}
+                    className="p-2 text-red-500 hover:text-red-700 transition"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-              Retail Price (PKR) *
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              required
-              value={retailPrice}
-              onChange={(e) => setRetailPrice(e.target.value)}
-              placeholder="4200.00"
-              className="w-full p-2.5 text-sm rounded-lg border border-gray-300 focus:outline-none focus:border-amber-500 font-bold"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-              B2B Price (PKR)
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              value={b2bPrice}
-              onChange={(e) => setB2bPrice(e.target.value)}
-              placeholder="3800.00"
-              className="w-full p-2.5 text-sm rounded-lg border border-gray-300 focus:outline-none focus:border-amber-500 font-bold"
-            />
-          </div>
+          <button
+            type="button"
+            onClick={handleAddTier}
+            className="text-xs font-bold text-amber-600 hover:underline flex items-center gap-1 mt-3"
+          >
+            <Plus className="h-3 w-3" /> Add Pricing Tier
+          </button>
         </div>
 
         <div>
@@ -263,16 +304,16 @@ export function ProductFormClient({ categories, applicationAreas }: Props) {
           <div className="flex flex-wrap gap-2">
             {applicationAreas.map((area) => {
               const isSelected = selectedAreas.includes(area.id)
+              let btnClasses = "bg-gray-50 text-gray-700 border-gray-300 hover:border-amber-500"
+              if (isSelected) {
+                btnClasses = "bg-amber-500 text-black border-amber-600"
+              }
               return (
                 <button
                   key={area.id}
                   type="button"
                   onClick={() => toggleArea(area.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition ${
-                    isSelected
-                      ? "bg-amber-500 text-black border-amber-600"
-                      : "bg-gray-50 text-gray-700 border-gray-300 hover:border-amber-500"
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition ${btnClasses}`}
                 >
                   {area.name}
                 </button>
@@ -282,7 +323,6 @@ export function ProductFormClient({ categories, applicationAreas }: Props) {
         </div>
       </div>
 
-      {/* Media & Datasheets */}
       <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
         <h2 className="text-sm font-bold uppercase tracking-wider text-gray-900 border-b pb-2">
           Media & Technical Datasheets

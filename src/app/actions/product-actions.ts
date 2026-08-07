@@ -5,10 +5,10 @@ import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
-// Super Admin has every Admin power plus more — product management is a
-// regular admin capability, so both roles must be allowed through.
 function canManageProducts(role: string | undefined): boolean {
-  return role === "ADMIN" || role === "SUPER_ADMIN"
+  if (role === "ADMIN") return true
+  if (role === "SUPER_ADMIN") return true
+  return false
 }
 
 const productSchema = z.object({
@@ -21,8 +21,12 @@ const productSchema = z.object({
   images: z.array(z.string().url("Must be a valid image URL")).min(1, "At least one image URL is required"),
   tdsUrl: z.string().url("Must be a valid TDS URL").optional().or(z.literal("")),
   sdsUrl: z.string().url("Must be a valid SDS URL").optional().or(z.literal("")),
-  retailPrice: z.number().positive("Retail price must be greater than 0"),
-  b2bPrice: z.number().positive("B2B price must be greater than 0").optional(),
+  tieredPrices: z.array(
+    z.object({
+      minQty: z.number().int().positive("Minimum quantity must be at least 1"),
+      price: z.number().positive("Price must be greater than 0")
+    })
+  ).min(1, "At least one pricing tier is required"),
   applicationAreaIds: z.array(z.string()).optional(),
   discountPercent: z.number().min(0).max(100).optional(),
   isFeatured: z.boolean().optional(),
@@ -32,7 +36,11 @@ const productSchema = z.object({
 export async function createProductAction(formData: unknown) {
   const session = await auth()
 
-  if (!session?.user || !canManageProducts(session.user.role)) {
+  if (!session?.user) {
+    return { success: false, error: "Unauthorized access" }
+  }
+
+  if (!canManageProducts(session.user.role)) {
     return { success: false, error: "Unauthorized access" }
   }
 
@@ -43,9 +51,6 @@ export async function createProductAction(formData: unknown) {
 
   const data = result.data
 
-  const retailPrice = Math.round(data.retailPrice * 100) / 100
-  const b2bPrice = data.b2bPrice ? Math.round(data.b2bPrice * 100) / 100 : undefined
-
   try {
     const existingSlug = await prisma.product.findUnique({
       where: { slug: data.slug },
@@ -54,6 +59,20 @@ export async function createProductAction(formData: unknown) {
     if (existingSlug) {
       return { success: false, error: { slug: ["A product with this slug already exists"] } }
     }
+
+    let applicationAreasInput = undefined
+    if (data.applicationAreaIds) {
+      if (data.applicationAreaIds.length > 0) {
+        applicationAreasInput = {
+          connect: data.applicationAreaIds.map((id: string) => ({ id }))
+        }
+      }
+    }
+
+    const formattedTiers = data.tieredPrices.map(tier => ({
+      minQty: tier.minQty,
+      price: Math.round(tier.price * 100) / 100
+    }))
 
     const newProduct = await prisma.product.create({
       data: {
@@ -69,14 +88,9 @@ export async function createProductAction(formData: unknown) {
         discountPercent: data.discountPercent ?? 0,
         isFeatured: data.isFeatured ?? false,
         status: data.status ?? "IN_STOCK",
-        applicationAreas: data.applicationAreaIds?.length
-          ? { connect: data.applicationAreaIds.map((id: string) => ({ id })) }
-          : undefined,
+        applicationAreas: applicationAreasInput,
         tieredPrices: {
-          create: [
-            { minQty: 1, price: retailPrice },
-            ...(b2bPrice ? [{ minQty: 10, price: b2bPrice }] : []),
-          ],
+          create: formattedTiers,
         },
       },
     })
@@ -86,8 +100,7 @@ export async function createProductAction(formData: unknown) {
     revalidatePath("/")
 
     return { success: true, productId: newProduct.id }
-  } catch (err) {
-    console.error("[CREATE_PRODUCT_ERROR]", err)
+  } catch {
     return { success: false, error: "Database error creating product" }
   }
 }
@@ -95,7 +108,11 @@ export async function createProductAction(formData: unknown) {
 export async function updateProductAction(id: string, formData: unknown) {
   const session = await auth()
 
-  if (!session?.user || !canManageProducts(session.user.role)) {
+  if (!session?.user) {
+    return { success: false, error: "Unauthorized access" }
+  }
+
+  if (!canManageProducts(session.user.role)) {
     return { success: false, error: "Unauthorized access" }
   }
 
@@ -105,9 +122,6 @@ export async function updateProductAction(id: string, formData: unknown) {
   }
 
   const data = result.data
-
-  const retailPrice = Math.round(data.retailPrice * 100) / 100
-  const b2bPrice = data.b2bPrice ? Math.round(data.b2bPrice * 100) / 100 : undefined
 
   try {
     const existingProduct = await prisma.product.findUnique({
@@ -126,6 +140,16 @@ export async function updateProductAction(id: string, formData: unknown) {
         return { success: false, error: { slug: ["A product with this slug already exists"] } }
       }
     }
+
+    let applicationAreasInput: { id: string }[] = []
+    if (data.applicationAreaIds) {
+      applicationAreasInput = data.applicationAreaIds.map((areaId: string) => ({ id: areaId }))
+    }
+
+    const formattedTiers = data.tieredPrices.map(tier => ({
+      minQty: tier.minQty,
+      price: Math.round(tier.price * 100) / 100
+    }))
 
     await prisma.$transaction([
       prisma.tieredPrice.deleteMany({
@@ -147,13 +171,10 @@ export async function updateProductAction(id: string, formData: unknown) {
           isFeatured: data.isFeatured ?? false,
           status: data.status ?? "IN_STOCK",
           applicationAreas: {
-            set: data.applicationAreaIds?.map((areaId: string) => ({ id: areaId })) || [],
+            set: applicationAreasInput,
           },
           tieredPrices: {
-            create: [
-              { minQty: 1, price: retailPrice },
-              ...(b2bPrice ? [{ minQty: 10, price: b2bPrice }] : []),
-            ],
+            create: formattedTiers,
           },
         },
       }),
@@ -165,8 +186,7 @@ export async function updateProductAction(id: string, formData: unknown) {
     revalidatePath("/")
 
     return { success: true }
-  } catch (err) {
-    console.error("[UPDATE_PRODUCT_ERROR]", err)
+  } catch {
     return { success: false, error: "Database error updating product" }
   }
 }
@@ -176,7 +196,12 @@ export async function updateProductStatusAction(
   status: "IN_STOCK" | "OUT_OF_STOCK" | "DISCONTINUED" | "BACKORDER"
 ) {
   const session = await auth()
-  if (!session?.user || !canManageProducts(session.user.role)) {
+  
+  if (!session?.user) {
+    return { success: false, error: "Unauthorized" }
+  }
+  
+  if (!canManageProducts(session.user.role)) {
     return { success: false, error: "Unauthorized" }
   }
 
@@ -195,7 +220,12 @@ export async function updateProductStatusAction(
 
 export async function toggleProductFeaturedAction(id: string, isFeatured: boolean) {
   const session = await auth()
-  if (!session?.user || !canManageProducts(session.user.role)) {
+  
+  if (!session?.user) {
+    return { success: false, error: "Unauthorized" }
+  }
+  
+  if (!canManageProducts(session.user.role)) {
     return { success: false, error: "Unauthorized" }
   }
 
@@ -214,7 +244,12 @@ export async function toggleProductFeaturedAction(id: string, isFeatured: boolea
 
 export async function deleteProductAction(id: string) {
   const session = await auth()
-  if (!session?.user || !canManageProducts(session.user.role)) {
+  
+  if (!session?.user) {
+    return { success: false, error: "Unauthorized" }
+  }
+  
+  if (!canManageProducts(session.user.role)) {
     return { success: false, error: "Unauthorized" }
   }
 

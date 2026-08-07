@@ -41,43 +41,54 @@ export function ProductEditFormClient({
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
 
-  const rawRetail = product.tieredPrices.find((p) => p.minQty === 1)?.price
-  const initialRetail = rawRetail !== undefined ? String(Number(rawRetail)) : ""
-
-  const rawB2b = product.tieredPrices.find((p) => p.minQty === 10)?.price
-  const initialB2b = rawB2b !== undefined ? String(Number(rawB2b)) : ""
-
   const [name, setName] = useState(product.name)
   const [slug, setSlug] = useState(product.slug)
   const [sku, setSku] = useState(product.sku)
   const [description, setDescription] = useState(product.description)
   const [packSize, setPackSize] = useState(product.packSize)
   const [categoryId, setCategoryId] = useState(product.categoryId)
-  const [retailPrice, setRetailPrice] = useState(initialRetail)
-  const [b2bPrice, setB2bPrice] = useState(initialB2b)
 
-  // New admin status state variables
-  const [discountPercent, setDiscountPercent] = useState(
-    product.discountPercent !== undefined && product.discountPercent !== null
-      ? String(product.discountPercent)
-      : "0"
-  )
+  const initialTiers = product.tieredPrices.length > 0 
+    ? product.tieredPrices.map(t => ({ minQty: String(t.minQty), price: String(t.price) }))
+    : [{ minQty: "1", price: "" }]
+
+  const [tieredPrices, setTieredPrices] = useState<{ minQty: string; price: string }[]>(initialTiers)
+
+  let initDiscount = "0"
+  if (product.discountPercent !== undefined && product.discountPercent !== null) {
+    initDiscount = String(product.discountPercent)
+  }
+  const [discountPercent, setDiscountPercent] = useState(initDiscount)
+  
   const [status, setStatus] = useState<"IN_STOCK" | "OUT_OF_STOCK" | "DISCONTINUED" | "BACKORDER">(
     product.status || "IN_STOCK"
   )
-  const [isFeatured, setIsFeatured] = useState<boolean>(
-    product.isFeatured || false
-  )
+  let initFeatured = false
+  if (product.isFeatured) {
+    initFeatured = true
+  }
+  const [isFeatured, setIsFeatured] = useState<boolean>(initFeatured)
 
   const [tdsUrl, setTdsUrl] = useState(product.tdsUrl || "")
   const [sdsUrl, setSdsUrl] = useState(product.sdsUrl || "")
 
-  const [imageUrls, setImageUrls] = useState<string[]>(
-    product.images.length > 0 ? product.images : [""]
-  )
+  let initImages = [""]
+  if (product.images.length > 0) {
+    initImages = product.images
+  }
+  const [imageUrls, setImageUrls] = useState<string[]>(initImages)
+  
   const [selectedAreas, setSelectedAreas] = useState<string[]>(
     product.applicationAreas.map((a) => a.id)
   )
+
+  const handleAddTier = () => setTieredPrices([...tieredPrices, { minQty: "", price: "" }])
+  const handleRemoveTier = (idx: number) => setTieredPrices(tieredPrices.filter((_, i) => i !== idx))
+  const handleTierChange = (idx: number, field: "minQty" | "price", val: string) => {
+    const updated = [...tieredPrices]
+    updated[idx][field] = val
+    setTieredPrices(updated)
+  }
 
   const handleAddImageUrl = () => setImageUrls([...imageUrls, ""])
   const handleRemoveImageUrl = (idx: number) =>
@@ -89,9 +100,12 @@ export function ProductEditFormClient({
   }
 
   const toggleArea = (id: string) => {
-    setSelectedAreas((prev) =>
-      prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]
-    )
+    setSelectedAreas((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter((a) => a !== id)
+      }
+      return [...prev, id]
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -107,6 +121,21 @@ export function ProductEditFormClient({
       return
     }
 
+    const parsedTiers = tieredPrices
+      .map((t) => ({ minQty: parseInt(t.minQty), price: parseFloat(t.price) }))
+      .filter((t) => !isNaN(t.minQty) && !isNaN(t.price))
+
+    if (parsedTiers.length === 0) {
+      setErrorMessage("At least one valid pricing tier is required.")
+      setLoading(false)
+      return
+    }
+
+    let parsedDiscount = 0
+    if (discountPercent) {
+      parsedDiscount = parseFloat(discountPercent)
+    }
+
     const payload = {
       name,
       slug,
@@ -114,9 +143,8 @@ export function ProductEditFormClient({
       description,
       packSize,
       categoryId,
-      retailPrice: parseFloat(retailPrice),
-      b2bPrice: b2bPrice ? parseFloat(b2bPrice) : undefined,
-      discountPercent: discountPercent ? parseFloat(discountPercent) : 0,
+      tieredPrices: parsedTiers,
+      discountPercent: parsedDiscount,
       status,
       isFeatured,
       images: validImages,
@@ -128,11 +156,11 @@ export function ProductEditFormClient({
     const res = await updateProductAction(product.id, payload)
 
     if (!res.success) {
-      setErrorMessage(
-        typeof res.error === "string"
-          ? res.error
-          : "Please check form values and try again."
-      )
+      let msg = "Please check form values and try again."
+      if (typeof res.error === "string") {
+        msg = res.error
+      }
+      setErrorMessage(msg)
       setLoading(false)
       return
     }
@@ -170,7 +198,6 @@ export function ProductEditFormClient({
         </div>
       )}
 
-      {/* General Information */}
       <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
         <h2 className="text-sm font-bold uppercase tracking-wider text-gray-900 border-b pb-2">
           General Information
@@ -240,12 +267,12 @@ export function ProductEditFormClient({
         </div>
       </div>
 
-      {/* Pricing & Store Settings */}
-      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
+      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-6">
         <h2 className="text-sm font-bold uppercase tracking-wider text-gray-900 border-b pb-2">
           Pricing & Store Settings
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
               Category *
@@ -266,31 +293,6 @@ export function ProductEditFormClient({
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-              Retail Price (PKR) *
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              required
-              value={retailPrice}
-              onChange={(e) => setRetailPrice(e.target.value)}
-              className="w-full p-2.5 text-sm rounded-lg border border-gray-300 focus:outline-none focus:border-amber-500 font-bold"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-              B2B Price (PKR)
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              value={b2bPrice}
-              onChange={(e) => setB2bPrice(e.target.value)}
-              className="w-full p-2.5 text-sm rounded-lg border border-gray-300 focus:outline-none focus:border-amber-500 font-bold"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
               Discount (%)
             </label>
             <input
@@ -305,7 +307,56 @@ export function ProductEditFormClient({
           </div>
         </div>
 
-        {/* Stock Status & Homepage Feature Toggle */}
+        <div>
+          <label className="block text-xs font-bold text-gray-700 uppercase mb-2">
+            Volume Pricing Tiers *
+          </label>
+          <div className="space-y-3">
+            {tieredPrices.map((tier, idx) => (
+              <div key={idx} className="flex gap-4 items-center">
+                <div className="flex-1 max-w-50">
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={tier.minQty}
+                    onChange={(e) => handleTierChange(idx, "minQty", e.target.value)}
+                    placeholder="Min Qty (e.g. 1)"
+                    className="w-full p-2.5 text-sm rounded-lg border border-gray-300 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div className="flex-1 max-w-62.5">
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={tier.price}
+                    onChange={(e) => handleTierChange(idx, "price", e.target.value)}
+                    placeholder="Price in PKR"
+                    className="w-full p-2.5 text-sm rounded-lg border border-gray-300 focus:outline-none focus:border-amber-500 font-bold"
+                  />
+                </div>
+                {tieredPrices.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveTier(idx)}
+                    className="p-2 text-red-500 hover:text-red-700 transition"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={handleAddTier}
+            className="text-xs font-bold text-amber-600 hover:underline flex items-center gap-1 mt-3"
+          >
+            <Plus className="h-3 w-3" /> Add Pricing Tier
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-gray-100">
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
@@ -344,16 +395,16 @@ export function ProductEditFormClient({
           <div className="flex flex-wrap gap-2">
             {applicationAreas.map((area) => {
               const isSelected = selectedAreas.includes(area.id)
+              let btnClasses = "bg-gray-50 text-gray-700 border-gray-300 hover:border-amber-500"
+              if (isSelected) {
+                btnClasses = "bg-amber-500 text-black border-amber-600"
+              }
               return (
                 <button
                   key={area.id}
                   type="button"
                   onClick={() => toggleArea(area.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition ${
-                    isSelected
-                      ? "bg-amber-500 text-black border-amber-600"
-                      : "bg-gray-50 text-gray-700 border-gray-300 hover:border-amber-500"
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition ${btnClasses}`}
                 >
                   {area.name}
                 </button>
@@ -363,7 +414,6 @@ export function ProductEditFormClient({
         </div>
       </div>
 
-      {/* Media & Datasheets */}
       <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
         <h2 className="text-sm font-bold uppercase tracking-wider text-gray-900 border-b pb-2">
           Media & Technical Datasheets
