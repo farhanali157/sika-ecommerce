@@ -2,7 +2,7 @@ import Link from "next/link"
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { Role } from "@prisma/client"
-import { ShoppingBag, Package, FileCheck, ShieldCheck, LayoutDashboard } from "lucide-react"
+import { ShoppingBag, Package, FileCheck, ShieldCheck, LayoutDashboard, Tag } from "lucide-react"
 
 export default async function AdminLayout({
   children,
@@ -41,6 +41,13 @@ export default async function AdminLayout({
           className="flex items-center gap-1.5 text-xs font-bold text-gray-700 hover:text-amber-600 px-3 py-2 rounded-lg transition"
         >
           <Package className="h-4 w-4" /> Inventory Management
+        </Link>
+
+        <Link
+          href="/admin/promotions"
+          className="flex items-center gap-1.5 text-xs font-bold text-gray-700 hover:text-amber-600 px-3 py-2 rounded-lg transition"
+        >
+          <Tag className="h-4 w-4 text-amber-500" /> Promotions & Ticker
         </Link>
 
         <Link
